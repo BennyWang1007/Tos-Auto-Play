@@ -1,7 +1,10 @@
 import numpy as np
 import utils
+from utils import evaluate_with_indices, drop_indices, eliminate_once_with_indices
 from MoveDir import MoveDir
 from constant import FIXED_BOARD
+from Runes import Runes, Rune
+from copy import deepcopy
 
 class Board:
     """A class of tos board"""
@@ -17,57 +20,37 @@ class Board:
         self.num_action = num_action
         self.mode = mode
         self.extra_obs = extra_obs
-        self.board = np.zeros((num_row, num_col), dtype=int)
-        self.untouchable = np.zeros((num_row, num_col), dtype=bool)
-        self.eliminable = np.zeros((num_row, num_col), dtype=bool)
-        self.must_remove = np.zeros((num_row, num_col), dtype=bool)
+        self.empty_rune = Rune(0, False, False)
+        # self.board = [Rune(np.random.randint(1, 1+self.num_rune), False, False) for _ in range(self.num_row * self.num_col)] + [self.empty_rune]
+        # self.indices = np.array([[x + y * self.num_col for x in range(self.num_col)] for y in range(self.num_row)])
         self.reset()
-        # self.print_attr()
 
     def print_attr(self):
         print(f'{self.num_col=}, {self.num_row=}, {self.num_rune=}, {self.max_move=}, {self.num_action=}, {self.mode=}, {self.extra_obs=}')
         print(f'{self.cur_x=}, {self.cur_y=}')
 
-    def get_obs(self) -> np.ndarray:
-        obs = np.reshape(self.board, (self.board_size,))
-        obs = np.append(obs, self.cur_x)
-        obs = np.append(obs, self.cur_y)
-        obs = np.append(obs, self.prev_action)
-        # print(f'pre_act={self.prev_action}, obs={obs[self.num_col*self.num_row:]}')
-        if self.extra_obs > 3:
-            obs = np.append(obs, self.move_count)
-        obs = obs.astype(np.int8)
-        return obs
-    
-    def set_board(self, board: np.ndarray) -> None:
-        self.board = board.copy()
-
-    def set_untouchable(self, untouchable: np.ndarray) -> None:
-        self.untouchable = untouchable.copy()
-
-    def set_eliminable(self, eliminable: np.ndarray) -> None:
-        self.eliminable = eliminable.copy()
-
-    def set_must_remove(self, must_remove: np.ndarray) -> None:
-        self.must_remove = must_remove.copy()
+    def set_board(self, board: list[Rune]) -> None:
+        # assert board.shape == (self.num_row, self.num_col), f'invalid board shape: {board.shape}'
+        # assert isinstance(board[0][0], Rune), f'invalid board type: {type(board[0][0])}'
+        self.board = board
 
     def set_cur_pos(self, x: int, y: int) -> None:
         self.cur_x = x
         self.cur_y = y
 
     def set_by_obs(self, obs: np.ndarray) -> None:
-        self.board = obs[:self.num_col*self.num_row].reshape((self.num_row, self.num_col))
-        self.cur_x = obs[self.num_col*self.num_row]
-        self.cur_y = obs[self.num_col*self.num_row+1]
-        self.prev_action = obs[self.num_col*self.num_row+2]
-        if len(obs) > self.num_col*self.num_row+3:
-            self.move_count = self.max_move - obs[self.num_col*self.num_row+3]
+        pass
+        # self.board = obs[:self.num_col*self.num_row].reshape((self.num_row, self.num_col))
+        # self.cur_x = obs[self.num_col*self.num_row]
+        # self.cur_y = obs[self.num_col*self.num_row+1]
+        # self.prev_action = obs[self.num_col*self.num_row+2]
+        # if len(obs) > self.num_col*self.num_row+3:
+        #     self.move_count = self.max_move - obs[self.num_col*self.num_row+3]
 
     def reset_combo(self):
         self.combo = 0
         self.first_combo = 0
         self.totol_eliminated = 0
-        # self.unchecked_col = [0, 1, 2, 3, 4, 5]
 
     def reset(self):
         self.reset_combo()
@@ -78,13 +61,16 @@ class Board:
         self.action = -1
         self.prev_action = -1
         self.terminate = False
-
         # if mode is fixed and fixed board exists, use fixed board
         if self.mode == 'fixed' and (self.num_col, self.num_row) in FIXED_BOARD:
+            raise NotImplementedError
             self.board = FIXED_BOARD[(self.num_col, self.num_row)].copy()
         else:
             while True:
-                self.board = np.random.randint(1, 1+self.num_rune, (self.num_row, self.num_col))
+                # self.board = np.random.randint(1, 1+self.num_rune, (self.num_row, self.num_col))
+                self.board = [Rune(np.random.randint(1, 1+self.num_rune), False, False) for _ in range(self.num_row * self.num_col)] + [self.empty_rune]
+                self.indices = np.array([[x + y * self.num_col for x in range(self.num_col)] for y in range(self.num_row)])
+                # print(id(self.board))
                 self.evaluate()
                 if self.first_combo == 0:
                     break
@@ -96,92 +82,29 @@ class Board:
     def random_pos(self):
         self.cur_x = np.random.randint(0, self.num_col)
         self.cur_y = np.random.randint(0, self.num_row)
-        # print(f'random_pos: ({self.cur_x}, {self.cur_y})')
         self.move_count = 0
 
+    def eliminate_once(self, is_first=False) -> None:
+        # combo, totol_eliminated = evaluate_with_indices(self.board, self.indices)
+        combo, totol_eliminated = eliminate_once_with_indices(self.board, self.indices)
+        if is_first:
+            self.first_combo += combo
+        self.combo += combo
+        self.totol_eliminated += totol_eliminated
+        self.indices = drop_indices(self.indices)
+
     def eliminate(self):
-        is_fisrt = True
-        # break if no runes to eliminate
-        while True:
-            # calculate to_eliminate
-            to_eliminate = np.zeros((self.num_row, self.num_col), dtype=int)
-            for x in range(self.num_col-2):
-                for y in range(self.num_row):
-                    color = self.board[y][x]
-                    if self.board[y][x+1] == color and self.board[y][x+2] == color:
-                        to_eliminate[y][x] = color
-                        to_eliminate[y][x+1] = color
-                        to_eliminate[y][x+2] = color
-                
-            for x in range(self.num_col):
-                for y in range(self.num_row-2):
-                    color = self.board[y][x]
-                    if self.board[y+1][x] == color and self.board[y+2][x] == color:
-                        to_eliminate[y][x] = color
-                        to_eliminate[y+1][x] = color
-                        to_eliminate[y+2][x] = color
-
-            # if no runes to eliminate, break
-            if not np.any(to_eliminate): return 0
-
-            self.board -= to_eliminate
-            last_y = 0
-            target = 0
-            # eliminate every runes
-            while True:
-                isZero = True
-                # find the first rune to eliminate
-                for i in range(last_y, self.num_row):
-                    for j in range(self.num_col):
-                        if to_eliminate[i][j] != 0:
-                            isZero = False
-                            last_y = i
-                            idx = (i, j)
-                            target = to_eliminate[i][j]
-                            break
-                    if not isZero: break
-                if isZero: break
-                if is_fisrt:
-                    self.first_combo += 1
-                self.combo += 1
-                # dfs to eliminate
-                stack = [idx]
-                visited = []
-                while stack:
-                    idx = stack.pop()
-                    if idx in visited: continue
-                    visited.append(idx)
-                    # check left, right, up, down
-                    if idx[0] > 0:
-                        if to_eliminate[idx[0]-1][idx[1]] == target:
-                            stack.append((idx[0]-1, idx[1]))
-                    if idx[0] < self.num_row-1:
-                        if to_eliminate[idx[0]+1][idx[1]] == target:
-                            stack.append((idx[0]+1, idx[1]))
-                    if idx[1] > 0:
-                        if to_eliminate[idx[0]][idx[1]-1] == target:
-                            stack.append((idx[0], idx[1]-1))
-                    if idx[1] < self.num_col-1:
-                        if to_eliminate[idx[0]][idx[1]+1] == target:
-                            stack.append((idx[0], idx[1]+1))
-
-                    to_eliminate[idx[0]][idx[1]] = 0
-                    self.totol_eliminated += 1
-                # print(f'to_eliminate:\n{to_eliminate}')
-            self.drop()
-            is_fisrt = False
+        self.reset_combo()
+        self.first_combo, self.combo, self.totol_eliminated = evaluate_with_indices(self.board, self.indices)
         
     def evaluate(self) -> None:
         """
         evaluate the board after elimination
         the board will not be modified
         """
-        original_board = self.board.copy()
-        self.reset_combo()
+        indices_copy = self.indices.copy()
         self.eliminate()
-        self.board = original_board
-        # self.board, original_board = original_board, self.board
-        # return original_board # return the eliminated board
+        self.indices = indices_copy
 
     def drop(self):
         # drop runes
@@ -203,15 +126,6 @@ class Board:
         # set prev_action
         if self.action != -1:
             self.prev_action = self.action
-
-        # if is first move, set current_pos
-        if self.cur_x == -1:
-            if 0 > action or action >= self.board_size:
-                self.action_invalid = True
-                return
-            self.cur_x, self.cur_y = self.idx2pos(action)
-            self.evaluate()
-            return
         
         # invalid direction
         if action > self.num_action - 1: 
@@ -233,7 +147,8 @@ class Board:
             return
         self.cur_x = next_x
         self.cur_y = next_y
-        self.board[y][x], self.board[next_y][next_x] = self.board[next_y][next_x], self.board[y][x]
+        # self.board[y][x], self.board[next_y][next_x] = self.board[next_y][next_x], self.board[y][x]
+        self.indices[y, x], self.indices[next_y, next_x] = self.indices[next_y, next_x], self.indices[y, x]
 
         if not self.action_invalid:
             self.action = action
@@ -256,7 +171,7 @@ class Board:
         new_board.num_action = self.num_action
         new_board.mode = self.mode
         new_board.extra_obs = self.extra_obs
-        new_board.board = self.board.copy()
+        new_board.board = deepcopy(self.board)
         new_board.cur_x = self.cur_x
         new_board.cur_y = self.cur_y
         new_board.move_count = self.move_count
@@ -267,9 +182,9 @@ class Board:
         new_board.first_combo = self.first_combo
         new_board.combo = self.combo
         new_board.totol_eliminated = self.totol_eliminated
-        new_board.untouchable = self.untouchable.copy()
-        new_board.eliminable = self.eliminable.copy()
-        new_board.must_remove = self.must_remove.copy()
+        # new_board.untouchable = self.untouchable.copy()
+        # new_board.eliminable = self.eliminable.copy()
+        # new_board.must_remove = self.must_remove.copy()
 
         return new_board
     
@@ -281,105 +196,129 @@ class Board:
         """convert position to index"""
         return y * self.num_col + x
 
-def get_board(obs: np.ndarray, num_col: int, num_row: int, num_rune: int, max_move: int, num_action: int) -> Board:
-    """get board from obs"""
-    board = Board(num_col, num_row, num_rune, max_move, num_action)
-    board.board = obs[:num_col*num_row].reshape((num_row, num_col))
-    board.cur_x = obs[num_col*num_row]
-    board.cur_y = obs[num_col*num_row+1]
-    board.prev_action = obs[num_col*num_row+2]
-    if len(obs) > num_col*num_row+3:
-        board.move_count = max_move - obs[num_col*num_row+3]
-    return board
+# def get_board(obs: np.ndarray, num_col: int, num_row: int, num_rune: int, max_move: int, num_action: int) -> Board:
+#     """get board from obs"""
+#     board = Board(num_col, num_row, num_rune, max_move, num_action)
+#     board.board = obs[:num_col*num_row].reshape((num_row, num_col))
+#     board.cur_x = obs[num_col*num_row]
+#     board.cur_y = obs[num_col*num_row+1]
+#     board.prev_action = obs[num_col*num_row+2]
+#     if len(obs) > num_col*num_row+3:
+#         board.move_count = max_move - obs[num_col*num_row+3]
+#     return board
 
 
-def evaluate_board(board, num_col, num_row):
-    """evaluate the board"""
-    isFisrt = True
-    # eliminate the board but not actually eliminate
-    # original_board = board.copy()
-    first_combo = 0
-    combo = 0
-    totol_eliminated = 0
-    # break if no runes to eliminate
-    while True:
-        # calculate to_eliminate
-        to_eliminate = np.zeros((num_row, num_col), dtype=int)
-        for x in range(num_col-2):
-            for y in range(num_row):
-                color = board[y][x]
-                if board[y][x+1] == color and board[y][x+2] == color:
-                    to_eliminate[y][x] = color
-                    to_eliminate[y][x+1] = color
-                    to_eliminate[y][x+2] = color
+# def eliminate_once(board: list[list[Rune]], num_col, num_row) -> tuple[int, int]:
+#     """
+#     Eliminate the board once, return the combo and total eliminated runes count
+#     """
+#     to_eliminate = np.zeros((num_row, num_col), dtype=int)
+#     for x in range(num_col-2):
+#         for y in range(num_row):
+#             rune = board[y][x].rune
+#             if rune < 1 or rune > 6: continue
+#             if board[y][x+1].rune == rune and board[y][x+2].rune == rune:
+#                 to_eliminate[y][x] = rune
+#                 to_eliminate[y][x+1] = rune
+#                 to_eliminate[y][x+2] = rune
             
-        for x in range(num_col):
-            for y in range(num_row-2):
-                color = board[y][x]
-                if board[y+1][x] == color and board[y+2][x] == color:
-                    to_eliminate[y][x] = color
-                    to_eliminate[y+1][x] = color
-                    to_eliminate[y+2][x] = color
+#     for x in range(num_col):
+#         for y in range(num_row-2):
+#             rune = board[y][x].rune
+#             if rune < 1 or rune > 6: continue
+#             if board[y+1][x].rune == rune and board[y+2][x].rune == rune:
+#                 to_eliminate[y][x] = rune
+#                 to_eliminate[y+1][x] = rune
+#                 to_eliminate[y+2][x] = rune
 
-        # if no runes to eliminate, break
-        if not np.any(to_eliminate): break
+#     # print(f'to_eliminate:\n{to_eliminate}')
 
-        board -= to_eliminate
-        last_y = 0
-        target = 0
-        # eliminate every runes
-        while True:
-            isZero = True
-            # find the first rune to eliminate
-            for i in range(last_y, num_row):
-                for j in range(num_col):
-                    if to_eliminate[i][j] != 0:
-                        isZero = False
-                        last_y = i
-                        idx = (i, j)
-                        target = to_eliminate[i][j]
-                        break
-                if not isZero: break
-            if isZero: break
-            if isFisrt:
-                first_combo += 1
-            combo += 1
-            # dfs to eliminate
-            stack = [idx]
-            visited = []
-            while stack:
-                idx = stack.pop()
-                if idx in visited: continue
-                visited.append(idx)
-                # check left, right, up, down
-                if idx[0] > 0:
-                    if to_eliminate[idx[0]-1][idx[1]] == target:
-                        stack.append((idx[0]-1, idx[1]))
-                if idx[0] < num_row-1:
-                    if to_eliminate[idx[0]+1][idx[1]] == target:
-                        stack.append((idx[0]+1, idx[1]))
-                if idx[1] > 0:
-                    if to_eliminate[idx[0]][idx[1]-1] == target:
-                        stack.append((idx[0], idx[1]-1))
-                if idx[1] < num_col-1:
-                    if to_eliminate[idx[0]][idx[1]+1] == target:
-                        stack.append((idx[0], idx[1]+1))
+#     for x in range(num_col):
+#         for y in range(num_row):
+#             if to_eliminate[y][x] != 0:
+#                 board[y][x].rune = 0
+#                 board[y][x].untouchable = False
+#                 board[y][x].must_remove = False
 
-                to_eliminate[idx[0]][idx[1]] = 0
+#     last_y = 0
+#     target = 0
+#     combo = 0
+#     totol_eliminated = 0
 
-                totol_eliminated += 1
-            # print(f'to_eliminate:\n{to_eliminate}')
-        # drop runes
-        for i in range(num_col):
-            stack = []
-            for j in range(num_row):
-                if board[j][i] != 0:
-                    stack.append(board[j][i])
-            if len(stack) < num_row:
-                stack = [0] * (num_row - len(stack)) + stack
-            for j in range(num_row):
-                board[j][i] = stack[j]
-        isFisrt = False
-    return first_combo, combo, totol_eliminated
+#     while True:
+#         isZero = True
+#         for i in range(last_y, num_row):
+#             for j in range(num_col):
+#                 if to_eliminate[i][j] != 0:
+#                     isZero = False
+#                     last_y = i
+#                     idx = (i, j)
+#                     target = to_eliminate[i][j]
+#                     break
+#             if not isZero: break
+#         if isZero: break
+#         combo += 1
+#         stack = [idx]
+#         visited = []
+#         while stack:
+#             idx = stack.pop()
+#             if idx in visited: continue
+#             visited.append(idx)
+#             if idx[0] > 0:
+#                 if to_eliminate[idx[0]-1][idx[1]] == target:
+#                     stack.append((idx[0]-1, idx[1]))
+#             if idx[0] < num_row-1:
+#                 if to_eliminate[idx[0]+1][idx[1]] == target:
+#                     stack.append((idx[0]+1, idx[1]))
+#             if idx[1] > 0:
+#                 if to_eliminate[idx[0]][idx[1]-1] == target:
+#                     stack.append((idx[0], idx[1]-1))
+#             if idx[1] < num_col-1:
+#                 if to_eliminate[idx[0]][idx[1]+1] == target:
+#                     stack.append((idx[0], idx[1]+1))
+
+#             to_eliminate[idx[0]][idx[1]] = 0
+#             totol_eliminated += 1
+
+#     return combo, totol_eliminated
+
+
+# def drop_runes(board: list[list[Rune]], num_col, num_row):
+#     for i in range(num_col):
+#         stack = []
+#         for j in range(num_row):
+#             if board[j][i].rune != 0:
+#                 stack.append(board[j][i])
+#         if len(stack) < num_row:
+#             stack = [Rune(0, False, False) for _ in range(num_row - len(stack))] + stack
+#         for j in range(num_row):
+#             board[j][i] = stack[j]
+
+
+# def evaluate_board(board: np.ndarray, num_col: int, num_row: int):
+#     """evaluate the board"""
+#     isFisrt = True
+#     newboard = deepcopy(board)
+
+#     first_combo = 0
+#     combo = 0
+#     totol_eliminated = 0
+#     while True:
+#         combo_, eliminated = eliminate_once(newboard, num_col, num_row)
+#         if combo_ == 0: break
+#         if isFisrt:
+#             first_combo += combo_
+#         combo += combo_
+#         totol_eliminated += eliminated
+#         drop_runes(newboard, num_col, num_row)
+#         isFisrt = False
+    
+#     return first_combo, combo, totol_eliminated
+
+
+
+if __name__ == "__main__":
+    board = Board()
+    board.print_board()
 
     

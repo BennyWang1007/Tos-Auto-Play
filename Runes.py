@@ -1,7 +1,27 @@
 from enum import Enum
 
+
+class Rune():
+    """
+    a class of runes
+    """
+    __slots__ = ['rune', 'untouchable', 'must_remove', 'eliminat']
+
+    def __init__(self, rune: int = 0, untouchable: bool = False, must_remove: bool = False):
+        self.rune = rune
+        self.untouchable = untouchable
+        self.must_remove = must_remove
+    
+    def __hash__(self) -> int:
+        return hash(self.rune)
+    
+    def __eq__(self, other) -> bool:
+        return self.rune == other.rune
+
+
 class Runes(Enum):
     """A class of runes"""
+    EMPTY = 0
     WATER = 1
     FIRE = 2
     WOOD = 3
@@ -9,7 +29,8 @@ class Runes(Enum):
     DARK = 5
     HEART = 6
     HIDDEN = 7
-    UNKNOWN = 0
+    UNELIMINABLE = 8
+    UNKNOWN = 9
     
     @staticmethod
     def int2str(rune: int) -> str:
@@ -20,6 +41,8 @@ class Runes(Enum):
     
     @staticmethod
     def int2color_code(rune: int) -> str:
+        if rune == Runes.EMPTY.value:
+            return "\033[0m" # white
         if rune == Runes.WATER.value:
             return "\033[94m" # blue
         if rune == Runes.FIRE.value:
@@ -32,7 +55,7 @@ class Runes(Enum):
             return "\033[95m" # magenta
         if rune == Runes.HEART.value:
             return "\033[0m" # white
-        if rune == Runes.HIDDEN.value:
+        if rune == Runes.HIDDEN.value or rune == Runes.UNELIMINABLE.value:
             return "\033[0m" # white
         if rune == Runes.UNKNOWN.value:
             return "\033[91m" # red
@@ -54,5 +77,7 @@ class Runes(Enum):
             return Runes.HEART.value
         elif s == 'HIDDEN' or s == 'hidden' or s == 'Hidden' or s == 'q' or s == 'Q':
             return Runes.HIDDEN.value
+        elif s == 'UNELIMINABLE' or s == 'uneliminable' or s == 'Uneliminable' or s == 'u' or s == 'U':
+            return Runes.UNELIMINABLE.value
         else:
             return Runes.UNKNOWN.value
