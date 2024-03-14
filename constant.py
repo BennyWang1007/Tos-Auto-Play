@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-from ppadb.device import Device as AdbDevice
 from typing import Literal
 from cv2.typing import MatLike
 

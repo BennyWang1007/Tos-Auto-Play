@@ -1,12 +1,9 @@
-
-
-from utils import *
 import cv2
-from Board import Board
-from Runes import Runes, Rune
 import numpy as np
 import time
-from ppadb.client import Client
+from Board import Board
+from Runes import Runes, Rune
+from utils import *
 from ppadb.device import Device as AdbDevice
 from constant import *
 

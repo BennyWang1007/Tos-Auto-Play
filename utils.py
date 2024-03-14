@@ -1,6 +1,6 @@
 import os
 import time
-import psutil
+# import psutil
 import numpy as np
 
 from MoveDir import MoveDir
@@ -48,9 +48,9 @@ def timeit(func):
     return wrapper
 
 
-def set_process_priority():
-    p = psutil.Process(os.getpid())
-    p.nice(psutil.HIGH_PRIORITY_CLASS)
+# def set_process_priority():
+#     p = psutil.Process(os.getpid())
+#     p.nice(psutil.HIGH_PRIORITY_CLASS)
 
 
 def drop_indices(board_indices: np.ndarray) -> np.ndarray:
