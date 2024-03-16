@@ -1,8 +1,9 @@
 import random
 import numpy as np
 import time
+import sys
 from ppadb.device import Device as AdbDevice
-from Board import Board
+from TosGame import TosGame
 from Runes import Runes
 from MoveDir import MoveDir
 from route_planning import *
@@ -11,7 +12,7 @@ from constant import *
 from read_board import read_templates, read_board
 
 
-"""-----------------send event functions-----------------"""
+"""-----------------send event constant and functions-----------------"""
 
 # suitable for Asus Zenfone M2
 EV_SYN = 0
@@ -27,8 +28,8 @@ BTN_TOUCH = 330
 DEV = '/dev/input/event1'
 
 # for ld player
-ABS_MT_TRACKING_ID = 58
-DEV = '/dev/input/event2'
+# ABS_MT_TRACKING_ID = 58
+# DEV = '/dev/input/event2'
 
 def sendevent(device: AdbDevice,type: int, code: int, value: int, dev: str=DEV):
     device.shell(f'sendevent {dev} {type} {code} {value}')
@@ -55,7 +56,7 @@ def route_move(device, route) -> None:
     tolerance = RUNE_SIZE // 4
     dx, dy = random.randint(-tolerance, tolerance), random.randint(-tolerance, tolerance)
     route_loc = [(x + RUNE_SIZE // 2 + dx, y + RUNE_SIZE // 2 + dy) for x, y in route_loc]
-    route_loc = [(y, SCREEN_WIDTH - x) for x, y in route_loc] # weird coordinate system of ld player
+    # route_loc = [(y, SCREEN_WIDTH - x) for x, y in route_loc] # weird coordinate system of ld player
 
     send_ABS_MT_TRACKING_ID(device, 1)
     sendevent(device, EV_KEY, BTN_TOUCH, 1)
@@ -70,14 +71,27 @@ def route_move(device, route) -> None:
 
 if __name__ == "__main__":
 
+    
+    if len(sys.argv) > 1:
+        run_times = int(sys.argv[1])
+    else:
+        run_times = 100
+    
     device = get_adb_device()
     read_templates()
     
-    iter = 5
+    # iter = 30
+    # max_first_depth = 4
+    # max_depth = 5
+    iter = 30
     max_first_depth = 7
-    max_depth = 9
+    max_depth = 10
+
+    prev_board = None
+    execute_times = 0
+    score = 0
+    final_route = []
     
-    # main loop
     while True:
         # read board until no unknown runes
         while True:
@@ -88,15 +102,26 @@ if __name__ == "__main__":
             board.print_board()
             time.sleep(1)
             print('\033[8F')
-        
-        score, final_route = route_planning(board, iter, max_first_depth, max_depth)
-        indices = get_indices_from_route(final_route)
-            
-        print_two_board(board.board, None, indices)
-        print(f'{score=}, len: {len(final_route)}')
+
+        same_board = (board == prev_board)
+
+        if not same_board:
+            execute_times += 1
+            board.print_board()
+            if execute_times > run_times:
+                print('\033[7F\033[J')
+                break
+
+        if not same_board:
+            score, final_route = route_planning(board, iter, max_first_depth, max_depth, True)
+            indices = get_indices_from_route(final_route)
+            # print('\033[7F')
+            print_two_board(board.board, None, indices)
+            print(f'{score=}, len: {len(final_route)}')
 
         route_move(device, final_route)
         time.sleep(3)
+        prev_board = board
 
 
     

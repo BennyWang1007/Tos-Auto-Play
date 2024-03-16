@@ -137,7 +137,7 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray) ->
     return combo, total_eliminated
             
 
-def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = None) -> tuple[int, int, int]:
+def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = None) -> tuple[int, int, int, np.ndarray]:
     """
     Evaluate the board with the indices of the board.
     """
@@ -145,10 +145,12 @@ def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = No
         board_indices = np.reshape(np.arange(NUM_COL * NUM_ROW), (NUM_ROW, NUM_COL))
     
     combo, total_eliminated = eliminate_once_with_indices(board, board_indices)
+    # return combo, combo, total_eliminated, board_indices
+    indices_after_first_elimination = board_indices.copy()
     board_indices = drop_indices(board_indices)
     
     if combo == 0:
-        return 0, 0, 0
+        return 0, 0, 0, indices_after_first_elimination
     
     f_c = combo
     c = 0
@@ -160,7 +162,7 @@ def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = No
         combo, total_eliminated = eliminate_once_with_indices(board, board_indices)
         board_indices = drop_indices(board_indices)
 
-    return f_c, c, eli
+    return f_c, c, eli, indices_after_first_elimination
 
 def print_board(board: list[Rune], indices: np.ndarray|None = None) -> None:
 

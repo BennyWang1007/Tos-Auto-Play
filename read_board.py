@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import time
-from Board import Board
+from TosGame import TosGame
 from Runes import Runes, Rune
 from utils import *
 from ppadb.device import Device as AdbDevice
@@ -54,9 +54,6 @@ def read_templates() -> None:
             if 'x' in file: untouchable = True # 風化符石
             if 'k' in file: must_remove = True # 腐化符石
 
-            
-
-            # template = cv2.imread(TEMPLATE_SAVE_PATH + file, IMREAD_MODE)
             template = cv2.imread(FINAL_TEMPLATE_PATH + file, IMREAD_MODE)
             
             # # template = template[SAMPLE_OFFSET:SAMPLE_OFFSET + SAMPLE_SIZE, SAMPLE_OFFSET:SAMPLE_OFFSET + SAMPLE_SIZE]
@@ -64,7 +61,7 @@ def read_templates() -> None:
             # e = (SAMPLE_OFFSET + SAMPLE_SIZE) * RUNE_SIZE // RUNE_SIZE_SAMPLE
             # template = template[s:e, s:e]
             
-            template = cv2.resize(template, (template.shape[1] // SCALE2, template.shape[0] // SCALE2))
+            template = cv2.resize(template, (template.shape[1] // SCALE, template.shape[0] // SCALE))
 
             if rune_templates.get(rune_type) is None:
                 idx = 0
@@ -81,7 +78,7 @@ def read_templates() -> None:
             
 
 def get_grid_loc_processed(x: int, y: int) -> tuple[int, int]:
-    return x * RUNE_SIZE // SCALE2, y * RUNE_SIZE // SCALE2
+    return x * RUNE_SIZE // SCALE, y * RUNE_SIZE // SCALE
             
 
 def match_rune(image, grid: tuple[int, int], threshold=0.8) -> tuple[str, tuple[bool, bool, bool], float]:
@@ -98,7 +95,7 @@ def match_rune(image, grid: tuple[int, int], threshold=0.8) -> tuple[str, tuple[
     - attr: the attributes of the rune
     - sim: the similarity of the match
     """
-    # image = cv2.resize(image, (image.shape[1] // SCALE2, image.shape[0] // SCALE2))
+    # image = cv2.resize(image, (image.shape[1] // SCALE, image.shape[0] // SCALE))
 
     width, height = image.shape[1], image.shape[0]
 
@@ -107,14 +104,14 @@ def match_rune(image, grid: tuple[int, int], threshold=0.8) -> tuple[str, tuple[
     # s_x, s_y = get_grid_loc(*grid)
     # e_x, e_y = s_x, s_y
 
-    # s_x = int((s_x + OFFSET[0]) // SCALE2 - margin)
-    # s_y = int((s_y + OFFSET[1]) // SCALE2 - margin)
-    # e_x = int((e_x + OFFSET2[0]) // SCALE2 + margin)
-    # e_y = int((e_y + OFFSET2[1]) // SCALE2 + margin)
+    # s_x = int((s_x + OFFSET[0]) // SCALE - margin)
+    # s_y = int((s_y + OFFSET[1]) // SCALE - margin)
+    # e_x = int((e_x + OFFSET2[0]) // SCALE + margin)
+    # e_y = int((e_y + OFFSET2[1]) // SCALE + margin)
     x, y = grid
 
-    s_x, s_y = (x * RUNE_SIZE + OFFSET[0]) // SCALE2 - margin, (y * RUNE_SIZE + OFFSET[1]) // SCALE2 - margin
-    e_x, e_y = (x * RUNE_SIZE + OFFSET2[0]) // SCALE2 + margin, (y * RUNE_SIZE + OFFSET2[1]) // SCALE2 + margin
+    s_x, s_y = (x * RUNE_SIZE + OFFSET[0]) // SCALE - margin, (y * RUNE_SIZE + OFFSET[1]) // SCALE - margin
+    e_x, e_y = (x * RUNE_SIZE + OFFSET2[0]) // SCALE + margin, (y * RUNE_SIZE + OFFSET2[1]) // SCALE + margin
 
     clamp = lambda x, l, r: max(l, min(r, x))
 
@@ -153,7 +150,7 @@ def match_rune(image, grid: tuple[int, int], threshold=0.8) -> tuple[str, tuple[
         return 'unknown', (False, False, False), max_res
 
 @timeit
-def read_board(device: AdbDevice = None, filepath: str|None = None) -> Board:
+def read_board(device: AdbDevice = None, filepath: str|None = None) -> TosGame:
 
     if device is None and filepath is None:
         device = get_adb_device()
@@ -175,7 +172,7 @@ def read_board(device: AdbDevice = None, filepath: str|None = None) -> Board:
     s_x, s_y = get_grid_loc(0, 0)
     e_x, e_y = get_grid_loc(NUM_COL, NUM_ROW)
     screenshot = screenshot[s_y:e_y, s_x:e_x]
-    screenshot = cv2.resize(screenshot, (screenshot.shape[1] // SCALE2, screenshot.shape[0] // SCALE2))
+    screenshot = cv2.resize(screenshot, (screenshot.shape[1] // SCALE, screenshot.shape[0] // SCALE))
 
     for y in range(NUM_ROW):
         for x in range(NUM_COL):
@@ -186,7 +183,7 @@ def read_board(device: AdbDevice = None, filepath: str|None = None) -> Board:
         #     print(f'{sim:.2f}', end=' ')
         # print()
 
-    board = Board()
+    board = TosGame()
     runes = [Rune(board_arr[x], untouch_arr[x], must_remove_arr[x]) for x in range(NUM_COL * NUM_ROW)] + [Rune(0, False, False)]
     board.set_board(runes)
 
@@ -212,13 +209,16 @@ if __name__ == "__main__":
 
     # board = read_board()
     # board.print_board()
-    # test_screenshot('E:/screenshot.png')
+    # test_screenshot('E:/screenshot2.png')
     # test_screenshot('screenshots/screenshot2.png')
     # test_screenshot('screenshots/screenshot3.png')
     # test_screenshot('screenshots/screenshot4.png')
-    # board = read_board(device, 'E:/screenshot.png')
+    board = read_board(device, 'E:/screenshot2.png')
     # board = read_board(device)
-    # board.print_board()
+    board.print_board()
+    with open('input.txt', 'w') as f:
+        f.write(str(board))
+    
 
 
 

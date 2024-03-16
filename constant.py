@@ -31,17 +31,14 @@ TEMPLATE_150_PATH = f'template_150/'
 TEMPLATE_SAVE_PATH = f'template_{RUNE_SIZE}/'
 FINAL_TEMPLATE_PATH = f'template_{RUNE_SIZE}_final/'
 
-# SAMPLE_SIZE = 60
-# SAMPLE_OFFSET = (RUNE_SIZE_SAMPLE - SAMPLE_SIZE) // 2
-
-# select the bottom half of the rune
+# select the bottom half of the rune as templates
 SAMPLE_OFFSET = 45, RUNE_SIZE_SAMPLE // 2
 SAMPLE_OFFSET2 = RUNE_SIZE_SAMPLE - 45, RUNE_SIZE_SAMPLE - 30
 
-# SAMPLE_SIZE = RUNE_SIZE_SAMPLE - 45, RUNE_SIZE_SAMPLE // 2
-SCALE2 = 3
+# scale down constant
+SCALE = 3
 
-# OFFSET = (RUNE_SIZE - SAMPLE_SIZE * RUNE_SIZE // RUNE_SIZE_SAMPLE) // 2
+# transformed offset to the screen size
 OFFSET = SAMPLE_OFFSET[0] * RUNE_SIZE // RUNE_SIZE_SAMPLE, SAMPLE_OFFSET[1] * RUNE_SIZE // RUNE_SIZE_SAMPLE
 OFFSET2 = SAMPLE_OFFSET2[0] * RUNE_SIZE // RUNE_SIZE_SAMPLE, SAMPLE_OFFSET2[1] * RUNE_SIZE // RUNE_SIZE_SAMPLE
 
@@ -78,47 +75,31 @@ rune_names: dict[str, list[str]] = {
     'hidden': []
 }
 
-# obsolete variable
-FIXED_BOARD: dict[tuple[int, int], np.ndarray] = {
-    # (3, 3): np.array(
-    #     [
-    #         [3, 3, 1],
-    #         [2, 1, 2],
-    #         [3, 2, 1]
-    #     ]
-    # ),
-    # (4, 4): np.array(
-    #     [
-    #         [3, 3, 1, 1],
-    #         [2, 1, 2, 2],
-    #         [3, 1, 2, 1],
-    #         [3, 2, 1, 1]
-    #     ]
-    # ),
-    # (5, 4): np.array(
-    #     [
-    #         [4, 3, 1, 1, 4],
-    #         [2, 1, 2, 2, 3],
-    #         [3, 1, 2, 1, 4],
-    #         [3, 2, 1, 1, 4]
-    #     ]
-    # ),
-    # (5, 5): np.array(
-    #     [
-    #         [2, 6, 3, 1, 1],
-    #         [6, 3, 3, 4, 6],
-    #         [1, 5, 5, 1, 4],
-    #         [5, 2, 6, 6, 4],
-    #         [2, 4, 1, 1, 2]
-    #     ]
-    # ),
-    # (6, 5): np.array(
-    #     [
-    #         [4, 2, 5, 1, 4, 3], 
-    #         [3, 6, 3, 2, 3, 3], 
-    #         [3, 4, 2, 5, 2, 1], 
-    #         [2, 3, 5, 1, 2, 2], 
-    #         [5, 2, 5, 4, 3, 3]
-    #     ]
-    # )
+
+FIXED_BOARD: dict[tuple[int, int], list[int]] = {
+    (3, 3): [3, 3, 1] +
+            [2, 1, 2] +
+            [3, 2, 1]
+    ,
+    (4, 4): [3, 3, 1, 1] +
+            [2, 1, 2, 2] +
+            [3, 1, 2, 1] +
+            [3, 2, 1, 1]
+    ,
+    (5, 4): [4, 3, 1, 1, 4] +
+            [2, 1, 2, 2, 3] +
+            [3, 1, 2, 1, 4] +
+            [3, 2, 1, 1, 4]
+    ,
+    (5, 5): [2, 6, 3, 1, 1] +
+            [6, 3, 3, 4, 6] +
+            [1, 5, 5, 1, 4] +
+            [5, 2, 6, 6, 4] +
+            [2, 4, 1, 1, 2]
+    ,
+    (6, 5): [4, 2, 5, 1, 4, 3] +
+            [3, 6, 3, 2, 3, 3] +
+            [3, 4, 2, 5, 2, 1] +
+            [2, 3, 5, 1, 2, 2] +
+            [5, 2, 5, 4, 3, 3]
 }
