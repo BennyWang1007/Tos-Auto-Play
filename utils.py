@@ -57,39 +57,80 @@ def drop_indices(board_indices: np.ndarray) -> np.ndarray:
     """
     Drop the runes that are eliminated and fill the empty spaces.
     """
-    new_board_indices = board_indices.copy()
-    for x in range(NUM_COL):
-        new_col = []
-        for y in range(NUM_ROW):
-            if board_indices[y, x] != NUM_COL * NUM_ROW:
-                new_col.append(board_indices[y, x])
-        new_col = [NUM_COL * NUM_ROW] * (NUM_ROW - len(new_col)) + new_col
-        new_board_indices[:, x] = new_col
-    return new_board_indices
+    # new_board_indices = board_indices.copy()
+    # for x in range(COL_NUM):
+    #     new_col = []
+    #     for y in range(ROW_NUM):
+    #         if board_indices[y, x] != COL_NUM * ROW_NUM:
+    #             new_col.append(board_indices[y, x])
+    #     new_col = [COL_NUM * ROW_NUM] * (ROW_NUM - len(new_col)) + new_col
+    #     new_board_indices[:, x] = new_col
+    empty_idx = COL_NUM * ROW_NUM
+    # new_board_indices = np.zeros((ROW_NUM, COL_NUM), dtype=int)
+    # for x in range(COL_NUM):
+    #     cur_y = ROW_NUM - 1
+    #     for y in range(ROW_NUM-1, -1, -1):
+    #         if board_indices[y, x] != empty_idx:
+    #             new_board_indices[cur_y, x] = board_indices[y, x]
+    #             cur_y -= 1
+    #     for y in range(cur_y, -1, -1):
+    #         new_board_indices[y, x] = empty_idx
+    for x in range(COL_NUM):
+        cur_y = ROW_NUM - 1
+        for y in range(ROW_NUM-1, -1, -1):
+            if board_indices[y, x] != empty_idx:
+                board_indices[cur_y, x] = board_indices[y, x]
+                cur_y -= 1
+        for y in range(cur_y, -1, -1):
+            board_indices[y, x] = empty_idx
+    return board_indices
 
 
-def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray) -> tuple[int, int]:
+def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray, has_setting=False) -> tuple[int, int]:
     # print('Eliminating...')
     # print_board(board, board_indices)
     """
     board: a 1D list of Rune objects, end with a NONE_RUNE
     board_indices: a 2D numpy array of integers, representing the indices of the board
     """
-    to_eliminate = np.zeros((NUM_ROW, NUM_COL), dtype=int)
-    for y in range(NUM_ROW):
-        for x in range(NUM_COL-2):
-            # print(f'{y=}, {x=}, {board[board_indices[y, x]]=}')
-            rune = board[board_indices[y, x]].rune
-            if rune == board[board_indices[y, x+1]].rune and rune == board[board_indices[y, x+2]].rune:
-                to_eliminate[y, x] = to_eliminate[y, x+1] = to_eliminate[y, x+2] = rune
-    # to_eliminate = to_eliminate.astype(int)
-    for i in range(NUM_ROW-2):
-        for j in range(NUM_COL):
-            rune = board[board_indices[i, j]].rune
-            if rune == board[board_indices[i+1, j]].rune and rune == board[board_indices[i+2, j]].rune:
-                to_eliminate[i, j] = to_eliminate[i+1, j] = to_eliminate[i+2, j] = rune
-    # to_eliminate = to_eliminate.astype(int)
-    # print('', to_eliminate, '', sep='\n')
+    to_eliminate = np.zeros((ROW_NUM, COL_NUM), dtype=int)
+    if not has_setting:
+        for y in range(ROW_NUM):
+            for x in range(COL_NUM-2):
+                rune = board[board_indices[y, x]].rune
+                if rune == board[board_indices[y, x+1]].rune and rune == board[board_indices[y, x+2]].rune:
+                    to_eliminate[y, x] = to_eliminate[y, x+1] = to_eliminate[y, x+2] = rune
+
+        for i in range(ROW_NUM-2):
+            for j in range(COL_NUM):
+                rune = board[board_indices[i, j]].rune
+                if rune == board[board_indices[i+1, j]].rune and rune == board[board_indices[i+2, j]].rune:
+                    to_eliminate[i, j] = to_eliminate[i+1, j] = to_eliminate[i+2, j] = rune
+    else:
+        # print('has_setting')
+        for y in range(ROW_NUM):
+            for x in range(COL_NUM):
+                min_match = board[board_indices[y, x]].min_match
+                # print(f'{min_match}', end=' ')
+                rune = board[board_indices[y, x]].rune
+                if min_match == 1 or min_match == 2:
+                    if min_match == 1: to_eliminate[y, x] = rune
+                    if ((x > 0 and board[board_indices[y, x-1]].rune == rune)):
+                        to_eliminate[y, x] = to_eliminate[y, x-1] = rune
+                    if ((y > 0 and board[board_indices[y-1, x]].rune == rune)):
+                        to_eliminate[y, x] = to_eliminate[y-1, x] = rune
+                    if ((x < COL_NUM-1 and board[board_indices[y, x+1]].rune == rune)):
+                        to_eliminate[y, x] = to_eliminate[y, x+1] = rune
+                    if ((y < ROW_NUM-1 and board[board_indices[y+1, x]].rune == rune)):
+                        to_eliminate[y, x] = to_eliminate[y+1, x] = rune
+                elif min_match == 3:
+                    if ((x > 0 and x < COL_NUM-1 and board[board_indices[y, x-1]].rune == rune and board[board_indices[y, x+1]].rune == rune)
+                        or (y > 0 and y < ROW_NUM-1 and board[board_indices[y-1, x]].rune == rune and board[board_indices[y+1, x]].rune == rune)
+                    ):
+                        to_eliminate[y, x] = to_eliminate[y, x-1] = to_eliminate[y, x+1] = rune
+                else:
+                    raise ValueError('invalid min_match')
+    
     combo = 0
     total_eliminated = 0
 
@@ -100,8 +141,8 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray) ->
     last_y = 0
     while not isZero:
         isZero = True
-        for y in range(last_y, NUM_ROW):
-            for x in range(NUM_COL):
+        for y in range(last_y, ROW_NUM):
+            for x in range(COL_NUM):
                 if to_eliminate[y, x] != 0:
                     isZero = False
                     last_y = y
@@ -120,16 +161,16 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray) ->
             visited.append((y, x))
             if y > 0 and to_eliminate[y-1, x] and board[board_indices[y-1, x]].rune == target:
                 stack.append((y-1, x))
-            if y < NUM_ROW-1 and to_eliminate[y+1, x] and board[board_indices[y+1, x]].rune == target:
+            if y < ROW_NUM-1 and to_eliminate[y+1, x] and board[board_indices[y+1, x]].rune == target:
                 stack.append((y+1, x))
             if x > 0 and to_eliminate[y, x-1] and board[board_indices[y, x-1]].rune == target:
                 stack.append((y, x-1))
-            if x < NUM_COL-1 and to_eliminate[y, x+1] and board[board_indices[y, x+1]].rune == target:
+            if x < COL_NUM-1 and to_eliminate[y, x+1] and board[board_indices[y, x+1]].rune == target:
                 stack.append((y, x+1))
 
         for y, x in visited:
             to_eliminate[y, x] = False
-            board_indices[y, x] = NUM_COL * NUM_ROW
+            board_indices[y, x] = COL_NUM * ROW_NUM
             total_eliminated += 1
     # print(f'{combo=}, {total_eliminated=}\n')
     # print_board(board, board_indices)
@@ -137,15 +178,15 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray) ->
     return combo, total_eliminated
             
 
-def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = None) -> tuple[int, int, int, np.ndarray]:
+def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = None, has_setting=False) -> tuple[int, int, int, np.ndarray]:
     """
     Evaluate the board with the indices of the board.
     """
     if board_indices is None:
-        board_indices = np.reshape(np.arange(NUM_COL * NUM_ROW), (NUM_ROW, NUM_COL))
+        board_indices = np.reshape(np.arange(COL_NUM * ROW_NUM), (ROW_NUM, COL_NUM))
     
-    combo, total_eliminated = eliminate_once_with_indices(board, board_indices)
-    # return combo, combo, total_eliminated, board_indices
+    combo, total_eliminated = eliminate_once_with_indices(board, board_indices, has_setting)
+    return combo, combo, total_eliminated, board_indices
     indices_after_first_elimination = board_indices.copy()
     board_indices = drop_indices(board_indices)
     
@@ -159,7 +200,7 @@ def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = No
     while combo > 0:
         c += combo
         eli += total_eliminated
-        combo, total_eliminated = eliminate_once_with_indices(board, board_indices)
+        combo, total_eliminated = eliminate_once_with_indices(board, board_indices, has_setting)
         board_indices = drop_indices(board_indices)
 
     return f_c, c, eli, indices_after_first_elimination
@@ -167,14 +208,14 @@ def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = No
 def print_board(board: list[Rune], indices: np.ndarray|None = None) -> None:
 
     if indices is None:
-        indices = np.array([[x + y * NUM_COL for x in range(NUM_COL)] for y in range(NUM_ROW)])
+        indices = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
     if indices is not None:
-        assert indices.shape == (NUM_ROW, NUM_COL), 'invalid indices shape'
+        assert indices.shape == (ROW_NUM, COL_NUM), 'invalid indices shape'
     
     # print('')
-    for y in range(NUM_ROW):
+    for y in range(ROW_NUM):
         print('\033[0m|', end=' ')
-        for x in range(NUM_COL):
+        for x in range(COL_NUM):
             if board[indices[y, x]].rune == Runes.EMPTY.value:
                 print(f'\033[0m ', end=' ')
                 continue
@@ -191,18 +232,18 @@ def print_board(board: list[Rune], indices: np.ndarray|None = None) -> None:
 def print_two_board(board: list[Rune], indices: np.ndarray|None = None, indices2: np.ndarray|None = None) -> None:
     
         if indices is None:
-            indices = np.array([[x + y * NUM_COL for x in range(NUM_COL)] for y in range(NUM_ROW)])
+            indices = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
         if indices2 is None:
-            indices2 = np.array([[x + y * NUM_COL for x in range(NUM_COL)] for y in range(NUM_ROW)])
+            indices2 = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
         if indices is not None:
-            assert indices.shape == (NUM_ROW, NUM_COL), 'invalid indices shape'
+            assert indices.shape == (ROW_NUM, COL_NUM), 'invalid indices shape'
         if indices2 is not None:
-            assert indices2.shape == (NUM_ROW, NUM_COL), 'invalid indices2 shape'
+            assert indices2.shape == (ROW_NUM, COL_NUM), 'invalid indices2 shape'
         
         # print('')
-        for y in range(NUM_ROW):
+        for y in range(ROW_NUM):
             print('\033[0m|', end=' ')
-            for x in range(NUM_COL):
+            for x in range(COL_NUM):
                 if board[indices[y, x]].rune == Runes.EMPTY.value:
                     print(f'\033[0m ', end=' ')
                     continue
@@ -214,13 +255,13 @@ def print_two_board(board: list[Rune], indices: np.ndarray|None = None, indices2
                     print(f'\033[1m{color}{symbol}', end=' ')
             print('\033[0m|', end='')
     
-            if y == NUM_ROW // 2:
+            if y == ROW_NUM // 2:
                 print('  ->  ', end='')
             else:
                 print('      ', end='')
     
             print('\033[0m|', end=' ')
-            for x in range(NUM_COL):
+            for x in range(COL_NUM):
                 if board[indices2[y, x]].rune == Runes.EMPTY.value:
                     print(f'\033[0m ', end=' ')
                     continue
@@ -252,3 +293,16 @@ def get_adb_device() -> AdbDevice:
     print(f'{devices=}')
     
     return devices[0]
+
+
+def race_str2int(race_str: str) -> int:
+    if race_str == 'GOD' or race_str == '神': return 1
+    if race_str == 'DEVIL' or race_str == '魔': return 2
+    if race_str == 'HUMAN' or race_str == '人': return 3
+    if race_str == 'ORC' or race_str == '獸': return 4
+    if race_str == 'DRAGON' or race_str == '龍': return 5
+    if race_str == 'ELF' or race_str == '妖': return 6
+    if race_str == 'MECH' or race_str == '機': return 7
+    if race_str == '': return 0
+    # return 0
+    raise ValueError(f'Invalid Race str')

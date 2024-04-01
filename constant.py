@@ -3,7 +3,7 @@ import cv2
 from typing import Literal
 from cv2.typing import MatLike
 
-SeriesName = Literal['棋靈王', '林黛玉', '陳圓圓']
+SeriesName = Literal["棋靈王", "林黛玉", "陳圓圓", "咒術"]
 
 # to change
 # SCREEN_WIDTH, SCREEN_HEIGHT = 1080, 2280
@@ -12,12 +12,12 @@ SeriesName = Literal['棋靈王', '林黛玉', '陳圓圓']
 SCREEN_WIDTH, SCREEN_HEIGHT = 900, 1600 # the resolution of the device
 LEFT_TOP = (0, 770) # the top left corner of the board
 
-NUM_COL = 6
-NUM_ROW = 5
+COL_NUM = 6
+ROW_NUM = 5
 MODE = 'random'
 MAX_DEPTH = 12
 
-TEMPLATE_LOAD_SERIES: list[SeriesName] = ["棋靈王", "林黛玉", "陳圓圓"]
+TEMPLATE_LOAD_SERIES: list[SeriesName] = ["林黛玉", "陳圓圓"]
 
 """--------------------------------------------------------------------------------------
 Do not modify these variable below this line unless you know what you are doing
@@ -27,9 +27,11 @@ RUNE_SIZE = SCREEN_WIDTH // 6
 RUNE_SIZE_SAMPLE = 150
 
 TEMPLATE_128_PATH = 'template_128/'
-TEMPLATE_150_PATH = f'template_150/'
 TEMPLATE_SAVE_PATH = f'template_{RUNE_SIZE}/'
 FINAL_TEMPLATE_PATH = f'template_{RUNE_SIZE}_final/'
+
+RACE_TEMPLATE_PATH = TEMPLATE_128_PATH + 'race/'
+FINAL_RACE_PATH = FINAL_TEMPLATE_PATH + 'race/'
 
 # select the bottom half of the rune as templates
 SAMPLE_OFFSET = 45, RUNE_SIZE_SAMPLE // 2
@@ -42,7 +44,15 @@ SCALE = 3
 OFFSET = SAMPLE_OFFSET[0] * RUNE_SIZE // RUNE_SIZE_SAMPLE, SAMPLE_OFFSET[1] * RUNE_SIZE // RUNE_SIZE_SAMPLE
 OFFSET2 = SAMPLE_OFFSET2[0] * RUNE_SIZE // RUNE_SIZE_SAMPLE, SAMPLE_OFFSET2[1] * RUNE_SIZE // RUNE_SIZE_SAMPLE
 
+RACE_SIZE = 68 * RUNE_SIZE // RUNE_SIZE_SAMPLE
+RACE_OFFSET = int(RUNE_SIZE * 0.6), 0
+RACE_OFFSET2 = RACE_OFFSET[0] + RACE_SIZE, RACE_OFFSET[1] + RACE_SIZE
+
 IMREAD_MODE = cv2.IMREAD_UNCHANGED
+
+SettingType = dict[str, list[str | tuple[str, int] | int]]
+
+race_template: dict[str, MatLike] = {}
 
 rune_templates: dict[str, list[MatLike]] = {
     'water': [],
@@ -74,6 +84,8 @@ rune_names: dict[str, list[str]] = {
     'heart': [], 
     'hidden': []
 }
+
+
 
 
 FIXED_BOARD: dict[tuple[int, int], list[int]] = {

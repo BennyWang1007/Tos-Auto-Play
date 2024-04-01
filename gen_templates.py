@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import os
 from constant import *
+from effect.constant import EFFECT_NAMES
+from effect.read_effect import gen_templates_effect
 
 def gen_templates() -> None:
     """
@@ -15,6 +17,10 @@ def gen_templates() -> None:
 
     if not os.path.exists(FINAL_TEMPLATE_PATH):
         os.makedirs(FINAL_TEMPLATE_PATH)
+
+    if not os.path.exists(FINAL_TEMPLATE_PATH + 'race/'):
+        os.makedirs(FINAL_TEMPLATE_PATH + 'race/')
+
     
     # extra_image = cv2.imread(TEMPLATE_128_PATH + 'extra.png', cv2.IMREAD_UNCHANGED)
     # size = (int(extra_image.shape[1] * 150 / RUNE_SIZE), int(extra_image.shape[0] * 150 / RUNE_SIZE))
@@ -31,22 +37,6 @@ def gen_templates() -> None:
             template = cv2.imread(TEMPLATE_128_PATH + file, cv2.IMREAD_UNCHANGED)
             template = cv2.resize(template, (RUNE_SIZE, RUNE_SIZE))
             cv2.imwrite(TEMPLATE_SAVE_PATH + file, template)
-
-            # x1, x2 = int(RUNE_SIZE * 0.6), int(RUNE_SIZE * 0.6) + extra_image.shape[1]
-            # x2 = min(x2, RUNE_SIZE)
-            # y1, y2 = 0, extra_image.shape[0]
-
-            # alpha_s = extra_image[:, :, 3] / 255.0
-            # alpha_l = 1.0 - alpha_s
-
-            # for c in range(0, 3):
-            #     for x in range(x1, x2):
-            #         for y in range(y1, y2):
-            #             template[y, x, c] = (alpha_s[y - y1, x - x1] * extra_image[y - y1, x - x1, c] +
-            #                                 alpha_l[y - y1, x - x1] * template[y, x, c])
-                        
-            # no_extension = file.split('.')[0]
-            # cv2.imwrite(TEMPLATE_SAVE_PATH + no_extension + '_e.png', template)
 
             cropped_template = template[OFFSET[1]:OFFSET2[1], OFFSET[0]:OFFSET2[0]]
             if not os.path.exists(FINAL_TEMPLATE_PATH + file):
@@ -66,10 +56,12 @@ def gen_templates() -> None:
             for overlay_file in os.listdir(TEMPLATE_128_PATH + 'extra/'):
                 if overlay_file.endswith('.png'):
                     if overlay_file == "Lin.png": suffix = "Lin"
-                    elif overlay_file == "Chen.png": suffix = "Chen"
+                    elif overlay_file == "Bell.png": suffix = "Bell"
                     elif overlay_file == "BunBlackChess.png": suffix = "BChess"
                     elif overlay_file == "BunWhiteChess.png": suffix = "WChess"
                     elif overlay_file == "ShieldGem.png": suffix = "s"
+                    elif overlay_file == "Jujutsu.png": suffix = "Jujutsu"
+                    elif overlay_file == "FireMark.png": suffix = "FireMark"
                     else: raise ValueError(f'Unknown file {overlay_file}')
 
                     overlayed_name = file.split('.')[0] + f'_{suffix}.png'
@@ -93,8 +85,37 @@ def gen_templates() -> None:
                         cv2.imwrite(FINAL_TEMPLATE_PATH + overlayed_name, template_new)
                     generate_count += 1
 
+    # generate races
+    race_count = 0
+    if not os.path.exists(FINAL_RACE_PATH):
+        os.makedirs(FINAL_RACE_PATH)
+    for file in os.listdir(RACE_TEMPLATE_PATH):
+        if file.endswith('.png'):
+            template = cv2.imread(f'{RACE_TEMPLATE_PATH}{file}', cv2.IMREAD_UNCHANGED)
+            template = cv2.resize(template, (RACE_SIZE, RACE_SIZE))
+            cv2.imwrite(f'{FINAL_RACE_PATH}{file}', template)
+            race_count += 1
+
     print(f'{generate_count} templates generated.')
+    print(f'{race_count} races generated.')
+
+# original_effect_path = R"C:\Users\benny\Desktop\tos_assets\export_fianl\ICON"
+
+# def gen_ori_templates_effect():
+#     for effect_name, effect_ids in EFFECT_NAMES.items():
+#         for effect_id in effect_ids:
+#             # fill the effect id to 3 digits with 0
+#             effect_id = str(effect_id).zfill(3)
+#             # template = cv2.imread(f'./templates/effects/{effect_id}.png', cv2.IMREAD_GRAYSCALE)
+#             if not os.path.exists(EFFECT_PATH):
+#                 os.makedirs(EFFECT_PATH)
+#             template = cv2.imread(f'{original_effect_path}/ICON{effect_id}.png', cv2.IMREAD_UNCHANGED)
+#             cv2.imwrite(f'{EFFECT_PATH}ICON{effect_id}.png', template)
+    
+
+
                     
 
 if __name__ == '__main__':
     gen_templates()
+    gen_templates_effect()

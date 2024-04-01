@@ -5,18 +5,25 @@ class Rune():
     """
     a class of runes
     """
-    __slots__ = ['rune', 'untouchable', 'must_remove', 'eliminat']
+    __slots__ = ['rune', 'race', 'min_match', 'untouchable', 'must_remove', 'no_first', 'all_first']
 
-    def __init__(self, rune: int = 0, untouchable: bool = False, must_remove: bool = False):
+    def __init__(self, rune: int = 0, race: int = 0, untouchable: bool = False, must_remove: bool = False):
         self.rune = rune
         self.untouchable = untouchable
         self.must_remove = must_remove
+        self.race = race
+        self.min_match = 3
+        self.no_first = False
+        self.all_first = False
     
     def __hash__(self) -> int:
         return hash(self.rune)
     
     def __eq__(self, other) -> bool:
         return self.rune == other.rune
+    
+    def __repr__(self) -> str:
+        return f'Rune({self.rune}, {self.race}, {self.untouchable}, {self.must_remove})'
 
 
 class Runes(Enum):

@@ -3,6 +3,7 @@ Welcome to Tos Auto Play! This tool is designed to automate gameplay on your dev
 
 ## Step 1. Configure Screen Dimensions
 Modify the `SCREEN_WIDTH` and `SCREEN_HEIGHT` variables in `constants.py` to match your device's screen dimensions.
+Then, assign the position of the top-left corner of the board to the variable `LEFT_TOP`.
 
 ## Step 2. Generate Templates
 Run `gen_templates.py` once after modifying the `SCREEN_WIDTH` and `SCREEN_HEIGHT` to generate the necessary templates for your device.

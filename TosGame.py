@@ -1,17 +1,37 @@
 import numpy as np
 import utils
-from utils import evaluate_with_indices, drop_indices, eliminate_once_with_indices
+from utils import evaluate_with_indices, drop_indices, eliminate_once_with_indices, race_str2int
 from MoveDir import MoveDir
-from constant import FIXED_BOARD
+from constant import FIXED_BOARD, SettingType
 from Runes import Runes, Rune
 from copy import deepcopy
+
+def is_rune(str):
+    return str in ['water', 'fire', 'grass', 'light', 'dark', 'heart']
+    
+def is_race(str):
+    pass
+
 
 class TosGame:
     """A class of tos board"""
 
     offset = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1), (0, 0)]
 
-    def __init__(self, num_col=6, num_row=5, num_rune=6, mode='random') -> None:
+    def __init__(self, num_col=6, num_row=5, num_rune=6, mode='random', *kwargs) -> None:
+
+        self.has_setting = True
+        # self.has_default_setting = False
+        self.default_board_setting: SettingType = {
+            'eli_color': [], # list of rune_str
+            'min_match_color': [], # list of tuple (rune_str, num)
+            'min_match_race': [], # list of tuple (race_str, num) such as ('神', 1)
+            'no_first': [], # list of rune_str
+            'all_first': [], # list of rune_str
+            'eli_first': [10], # target number of first combo
+            'same': [] # list of rune_str
+        }
+        self.current_board_setting: SettingType = self.default_board_setting
         self.num_col = num_col
         self.num_row = num_row
         self.num_rune = num_rune
@@ -19,6 +39,38 @@ class TosGame:
         self.mode = mode
         self.empty_rune = Rune(0, False, False)
         self.reset()
+
+    def set_board_setting(self, setting: SettingType):
+        new_setting = setting.copy()
+        # combine with default setting
+        for key in self.default_board_setting:
+            if key not in setting:
+                new_setting[key] = self.default_board_setting[key]
+            else:
+                new_setting[key] = self.default_board_setting[key] + setting[key]
+        self.current_board_setting = new_setting
+        self.set_up_runes()
+
+    def set_up_runes(self):
+        for rune_str, num in self.current_board_setting['min_match_color']:
+            for i in range(self.num_col * self.num_row):
+                if self.board[i].rune == Runes.str2int(rune_str):
+                    self.board[i].min_match = num
+
+        for race_str, num in self.current_board_setting['min_match_race']:
+            for i in range(self.num_col * self.num_row):
+                if self.board[i].race == race_str2int(race_str):
+                    self.board[i].min_match = num
+
+        for rune_str in self.current_board_setting['no_first']:
+            for i in range(self.num_col * self.num_row):
+                if self.board[i].rune == Runes.str2int(rune_str):
+                    self.board[i].no_first = True
+
+        for rune_str in self.current_board_setting['all_first']:
+            for i in range(self.num_col * self.num_row):
+                if self.board[i].rune == Runes.str2int(rune_str):
+                    self.board[i].all_first = True
 
     def __eq__(self, o: object) -> bool:
         if not isinstance(o, TosGame): return False
@@ -54,7 +106,7 @@ class TosGame:
         self.prev_action = -1
         # use fixed board if it exists, otherwise random board
         if self.mode == 'fixed' and (self.num_col, self.num_row) in FIXED_BOARD:
-            self.board = FIXED_BOARD[(self.num_col, self.num_row)].copy()
+            self.board = [Rune(x, 0, False, False) for x in FIXED_BOARD[(self.num_col, self.num_row)]] + [self.empty_rune]
         else:
             while True:
                 self.board = [Rune(np.random.randint(1, 1+self.num_rune), False, False) for _ in range(self.num_row * self.num_col)] + [self.empty_rune]
@@ -171,6 +223,90 @@ class TosGame:
         new_board.totol_eliminated = self.totol_eliminated
 
         return new_board
+    
+    def print_race(self):
+        race_name_str = ['__', '神', '魔', '人', '獸', '龍', '妖', '機']
+        for i in range(self.num_row):
+            for j in range(self.num_col):
+                idx = i * self.num_col + j
+                print(race_name_str[self.board[idx].race], end=' ')
+            print()
+
+    def print_min_match(self):
+        for i in range(self.num_row):
+            for j in range(self.num_col):
+                idx = i * self.num_col + j
+                print(self.board[idx].min_match, end=' ')
+            print()
+
+    def print_untouchable(self):
+        for i in range(self.num_row):
+            for j in range(self.num_col):
+                idx = i * self.num_col + j
+                print(self.board[idx].untouchable, end=' ')
+            print()
+
+    def rune_str(self) -> str:
+        type_str = " WFGLDH?X_U"
+        rune_str = ""
+        for i in range(self.num_col * self.num_row):
+            rune_str += type_str[self.board[i].rune]
+        return rune_str
+    
+    def race_str(self) -> str:
+        type_str = " GDHOLEM"
+        rune_str = ""
+        for i in range(self.num_col * self.num_row):
+            rune_str += type_str[self.board[i].race]
+        return rune_str
+    
+    def min_match_str(self) -> str:
+        min_match_str = ""
+        for i in range(self.num_col * self.num_row):
+            min_match_str += str(self.board[i].min_match)
+        return min_match_str
+    
+    # def no_first_str(self) -> str:
+    #     no_first_str = ""
+    #     for i in range(self.num_col * self.num_row):
+    #         no_first_str += str(int(self.board[i].no_first))
+    #     return no_first_str
+    
+    def must_remove_str(self) -> str:
+        must_remove_str = ""
+        for i in range(self.num_col * self.num_row):
+            must_remove_str += str(int(self.board[i].must_remove))
+        return must_remove_str
+    
+    # TODO: obsolete, remove in the future
+    def to_c_str(self):
+        type_str = " WFGLDH?X_U"
+        race_str = " GDEH?"
+        rune_str = self.rune_str()
+        race_str = self.race_str()
+        min_match_str = self.min_match_str()
+        must_remove_str = self.must_remove_str()
+        
+        return rune_str + race_str + min_match_str + must_remove_str
+    
+    def setting_str(self):
+        str1 = 'eli_color: '
+        for rune_str in self.current_board_setting['eli_color']:
+            str1 += rune_str + ''
+        str2 = 'no_first: '
+        for rune_str in self.current_board_setting['no_first']:
+            str2 += rune_str + ''
+        str3 = 'all_first: '
+        for rune_str in self.current_board_setting['all_first']:
+            str3 += rune_str + ''
+        str4 = 'eli_first: ' + str(self.current_board_setting['eli_first'][0])
+        str5 = 'same: '
+        for rune_str in self.current_board_setting['same']:
+            str5 += rune_str + ''
+        sep = '/'
+        return str1 + sep + str2 + sep + str3 + sep + str4 + sep + str5
+
+                
 
 
 if __name__ == "__main__":
