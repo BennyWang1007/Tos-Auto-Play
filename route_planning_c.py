@@ -13,7 +13,7 @@ def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: 
     setting_str = game.setting_str()
 
     command = [
-        "../tos_c/get_route.exe", '-i', str(iter), '-f', str(max_first_depth), '-d', str(max_depth),
+        "get_route.exe", '-i', str(iter), '-f', str(max_first_depth), '-d', str(max_depth),
         '-rune', rune_str,'-race', race_str, '-min_match', min_match_str,
         '-must', must_remove_str, '-setting', setting_str
     ]
