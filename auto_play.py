@@ -1,16 +1,18 @@
 import random
-import numpy as np
-import time
 import sys
+import time
+
+import numpy as np
 from ppadb.device import Device as AdbDevice
-from TosGame import TosGame
-from Runes import Runes
-from MoveDir import MoveDir
-from route_planning import *
-from utils import *
+
 from constant import *
-from read_board import read_templates, read_board
+from MoveDir import MoveDir
+from read_board import read_board
+from route_planning import *
 from route_planning_c import route_planning_c
+from Runes import Runes
+from TosGame import TosGame
+from utils import *
 
 
 """-----------------send event constant and functions-----------------"""
@@ -132,12 +134,12 @@ if __name__ == "__main__":
         if not same_board:
             # score, final_route = route_planning(game, iter, max_first_depth, max_depth, True)
             final_route = route_planning_c(game, iter, max_first_depth, max_depth, False)
+            
+        game_before_move = read_board(device)
+        if (game_before_move == game):
             indices = get_indices_from_route(final_route)
             print_two_board(game.board, None, indices)
             print(f'{score=}, len: {len(final_route)}')
-
-        game_before_move = read_board(device)
-        if (game_before_move == game):
             route_move(device, final_route)
             prev_game = game
         else:

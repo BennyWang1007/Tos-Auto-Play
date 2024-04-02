@@ -47,7 +47,10 @@ class TosGame:
             if key not in setting:
                 new_setting[key] = self.default_board_setting[key]
             else:
-                new_setting[key] = self.default_board_setting[key] + setting[key]
+                if key == 'eli_first':
+                    new_setting[key] = setting[key]
+                else:
+                    new_setting[key] = self.default_board_setting[key] + setting[key]
         self.current_board_setting = new_setting
         self.set_up_runes()
 

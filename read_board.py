@@ -1,15 +1,15 @@
+import time
+
 import cv2
 import numpy as np
-import time
-from TosGame import TosGame
-from Runes import Runes, Rune
-from utils import *
 from ppadb.device import Device as AdbDevice
+
 from constant import *
 from effect.read_effect import read_effects, gen_board_setting
 from gen_templates import gen_templates
-
-from gen_templates import FINAL_TEMPLATE_PATH
+from TosGame import TosGame
+from Runes import Runes, Rune
+from utils import *
 
 def read_templates() -> None:
     """
@@ -204,7 +204,7 @@ def read_board(device: AdbDevice = None, filepath: str|None = None, screenshot: 
         if filepath is None:
             pic = device.screencap()
             screenshot = cv2.imdecode(np.frombuffer(pic, np.uint8), IMREAD_MODE)
-            print('screenshot shape:', screenshot.shape)
+            # print('screenshot shape:', screenshot.shape)
         else:
             assert os.path.exists(filepath), f'File {filepath} does not exist'
             screenshot = cv2.imread(filepath, IMREAD_MODE)
@@ -237,7 +237,7 @@ def read_board(device: AdbDevice = None, filepath: str|None = None, screenshot: 
     # screenshot = cv2.cvtColor(screenshot_copy, cv2.COLOR_BGRA2BGR)
     effects = read_effects(screenshot_3channel)
     setting = gen_board_setting(effects)
-    print(setting)
+    print('effect:', setting)
     game.set_board_setting(setting)
     # game.set_up_runes()
 
@@ -260,7 +260,7 @@ if __name__ == "__main__":
 
     # device = get_adb_device()
     # game = read_board(device, 'screenshots/Screenshot_20240323-012216.png')
-    game = read_board(None, 'screenshots/Screenshot_20240323-012316.png')
+    game = read_board(None, 'screenshots/Screenshot_20240323-012337.png')
     game.set_up_runes()
     game.print_board()
     # print("Races:")

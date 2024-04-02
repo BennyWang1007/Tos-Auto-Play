@@ -11,7 +11,6 @@ from utils import timeit
 from .constant import *
 
 EFFECT_IMREAD_FLAG = cv2.IMREAD_UNCHANGED
-# SettingType = dict[str, list[str | tuple[str, int] | int]]
 
 to_setting: dict[str, dict] = {}
 
@@ -21,11 +20,10 @@ def gen_templates_effect():
         for effect_id in effect_ids:
             # fill the effect id to 3 digits with 0
             effect_id = str(effect_id).zfill(3)
-            # template = cv2.imread(f'./templates/effects/{effect_id}.png', cv2.IMREAD_GRAYSCALE)
             if not os.path.exists(FINAL_EFFECT_PATH):
                 os.makedirs(FINAL_EFFECT_PATH)
             template = cv2.imread(f'{EFFECT_PATH}/ICON{effect_id}.png', cv2.IMREAD_UNCHANGED)
-            template = cv2.resize(template, (EFFECT_SIZE, EFFECT_SIZE))
+            template = cv2.resize(template, (EFFECT_TEMPLATE_SIZE, EFFECT_TEMPLATE_SIZE))
             cv2.imwrite(f'{FINAL_EFFECT_PATH}ICON{effect_id}.png', template)
             count += 1
 
@@ -59,7 +57,7 @@ def set_toSetting() -> None:
             to_setting[effect_name] = {}
 
 
-@timeit
+# @timeit
 def read_effect_templates() -> None:
     """
     Read templates for the board recognition.
@@ -74,7 +72,7 @@ def read_effect_templates() -> None:
         for effect_id in effect_ids:
             effect_id_str = str(effect_id).zfill(3)
             template = cv2.imread(f'{FINAL_EFFECT_PATH}/ICON{effect_id_str}.png', cv2.IMREAD_UNCHANGED)
-            assert template.shape == (EFFECT_SIZE, EFFECT_SIZE, 4), f'Incorrect shape {template.shape} for {effect_name}'
+            assert template.shape == (EFFECT_TEMPLATE_SIZE, EFFECT_TEMPLATE_SIZE, 4), f'Incorrect shape {template.shape} for {effect_name}'
             if template is None:
                 raise ValueError(f'Cannot read {FINAL_EFFECT_PATH}/ICON{effect_id_str}.png')
             if effect_name in EFFECT_TEMPLATES:
@@ -99,12 +97,13 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
     effects: list = []
     results: list[tuple] = []
     found_loc: list[tuple[int, int]] = []
+    _image = cv2.resize(image, (0, 0), fx=EFFECT_SCALE, fy=EFFECT_SCALE)
     for effect_name, templates in EFFECT_TEMPLATES.items():
         for i in range(len(templates)):
             template = templates[i]
             mask = EFFECT_MASKS[effect_name][i]
-            # print(image.shape, template.shape, mask.shape)
-            res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED, mask=mask)
+            # print(_image.shape, template.shape, mask.shape)
+            res = cv2.matchTemplate(_image, template, cv2.TM_CCOEFF_NORMED, mask=mask)
             res[np.isinf(res)] = 0
 
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
@@ -114,19 +113,21 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
                 found_loc.append((loc[1][0], loc[0][0]))
             
     found_loc = list(set(found_loc))
+    if len(found_loc) == 0:
+        return []
     # print(found_loc)
 
     effects = []
     results = []
     for x, y in found_loc:
-        # test_image = image[loc[1]:loc[1]+EFFECT_SIZE, loc[0]:loc[0]+EFFECT_SIZE]
-        test_image = image[y:y+EFFECT_SIZE, x:x+EFFECT_SIZE]
+        test_image = _image[y:y+EFFECT_SIZE, x:x+EFFECT_SIZE]
         max_res = 0.0
         max_name = ''
         for effect_name, templates in EFFECT_TEMPLATES.items():
             for i in range(len(templates)):
                 template = templates[i]
                 mask = EFFECT_MASKS[effect_name][i]
+                # print(test_image.shape, template.shape, mask.shape)
                 res = cv2.matchTemplate(test_image, template, cv2.TM_CCOEFF_NORMED, mask=mask)
                 res[np.isinf(res)] = 0
                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
@@ -143,45 +144,7 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
     return effects_name
 
 
-import cv2 as cv
-import numpy as np
-from matplotlib import pyplot as plt
-
-
-def match_transparent(original, template):
-    # original = cv.imread('Original_game.png')
-    # img = cv.imread('Original_game.png',0)
-    img = original.copy()
-    img2 = img.copy()
-    # template = cv.imread('template.png',0)
-    print(template.shape[::-1])
-    # w, h = template.shape[::-1]
-    w, h = template.shape[1], template.shape[0]
-    # All the 3 methods for comparison in a list
-    methods = ['cv.TM_CCOEFF', 'cv.TM_CCOEFF_NORMED', 'cv.TM_CCORR_NORMED']#,'cv.TM_CCORR','cv.TM_SQDIFF', 'cv.TM_SQDIFF_NORMED'
-
-    for meth in methods:
-        img = img2.copy()
-        method = eval(meth)
-
-        # Apply template Matching
-        res = cv.matchTemplate(img,template,method)
-        min_val, max_val, min_loc, max_loc = cv.minMaxLoc(res)
-
-        print(f"meth={meth} , min_val={min_val}, max_val={max_val}, min_loc={min_loc}, max_loc={max_loc}")
-        
-        # If the method is TM_SQDIFF or TM_SQDIFF_NORMED, take minimum
-        if method in [cv.TM_SQDIFF, cv.TM_SQDIFF_NORMED]:
-            top_left = min_loc
-        else:
-            top_left = min_loc#max_loc
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-        cv.rectangle(original,top_left, bottom_right, 255, 2)
-        fig = plt.figure(figsize=(10, 7))
-        plt.imshow(original)
-        plt.show()
-
-# @timeit
+@timeit
 def read_effects(image: MatLike) -> list[str]:
     """
     Read the effects from the image.
@@ -252,6 +215,7 @@ def read_effects(image: MatLike) -> list[str]:
     results = []
     for image_ in image_list:
         result = read_effect(image_, 0.8)
+        # print('scale_result:', read_effect_scale(image_, 0.8))
         # print(result)
         for effect in result:
             results.append(effect)
@@ -280,16 +244,12 @@ def gen_board_setting(effects: list[str]) -> SettingType:
                         results[key] = list(set(results[key]))
                 # results.update(setting)
 
-    
     return results
 
 
 
 if __name__ == '__main__':
 
-    set_toSetting()
-    # quit()
-    read_effect_templates()
     file_path = R"screenshots\Screenshot_20240323-012256.png"
     # file_path = R"E:/Screenshot_2024-03-26-21-55-09-64_d05ce97d19cf4f15bd3a34cdb85fe924.jpg"
     image = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
@@ -297,17 +257,3 @@ if __name__ == '__main__':
     print(f"{results:}")
     setting = gen_board_setting(results)
     print(f"{setting:}")
-    # result_dict: dict[str, list[str]] = {}
-    # for file in os.listdir(R"E:/Screenshots"):
-    #     if file.endswith('.jpg') or file.endswith('.png'):
-    #         file_path = os.path.join(R"E:/Screenshots", file)
-    #         results = read_effects(file_path)
-    #         print(results)
-    #         image = cv2.imread(file_path, cv2.IMREAD_UNCHANGED)
-    #         image = cv2.resize(image, (image.shape[1] // 3, image.shape[0] // 3), interpolation=cv2.INTER_AREA)
-    #         cv2.imshow('image', image)
-    #         cv2.waitKey(0)
-    #         result_dict[file] = results
-
-    # print(result_dict)
-    # main()
