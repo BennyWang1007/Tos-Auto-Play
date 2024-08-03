@@ -8,6 +8,9 @@ Then, assign the position of the top-left corner of the board to the variables `
 ## Step 2: Adjust Event Constants
 Depending on your device, you may need to test and adjust the constants for the send event functions in `util/events.py` to ensure proper functionality.
 
+## Step 3: Compile the C++ Code
+Compile the C++ code in the `c++` directory by running `compile.bat` in directory `c++`, which will generate the `c++/get_route.exe` file.
+
 ## Final Step: Run and Enjoy!
 Once you have completed the setup, run `auto_play.py` to start automating gameplay. Have fun!
 
