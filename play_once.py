@@ -121,7 +121,7 @@ def play_once(device: AdbDevice, complexity: Literal["Low", "Mid", "High", "Extr
 if __name__ == "__main__":
         
     device = get_adb_device()
-    play_once(device, "Low", read_effect=False)
+    play_once(device, "Mid", read_effect=False)
 
 
 

@@ -10,7 +10,6 @@ using namespace std;
 class Rune {
 public:
     Rune(int type, int race=0, int min_match=3, bool no_first=false, bool untouchable=false, bool must_eliminate=false);
-    Rune(int type);
     Rune();
     ~Rune();
 
