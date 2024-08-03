@@ -1,14 +1,14 @@
 import numpy as np
 
-from constant import SCREEN_WIDTH
+from util.constant import SCREEN_WIDTH
 
 EFFECT_SCALE = 0.5
 
 EFFECT_SIZE = SCREEN_WIDTH // 20
 EFFECT_TEMPLATE_SIZE = int(EFFECT_SIZE * EFFECT_SCALE)
 
-EFFECT_PATH = f'effect_64/'
-FINAL_EFFECT_PATH = f'effect_{EFFECT_TEMPLATE_SIZE}/'
+EFFECT_PATH = f'templates/effect_64/'
+FINAL_EFFECT_PATH = f'E:/effect_{EFFECT_TEMPLATE_SIZE}/'
 
 EFFECT_NAMES: dict[str, list[int]] = {
     '1F': [64], # 1 combo in 1st batch

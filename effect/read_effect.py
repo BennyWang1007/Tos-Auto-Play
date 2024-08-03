@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from constant import SettingType
-from utils import timeit
+from util.constant import SettingType
+from util.utils import timeit
 from .constant import *
 
 EFFECT_IMREAD_FLAG = cv2.IMREAD_UNCHANGED
@@ -162,7 +162,7 @@ def read_effects(image: MatLike) -> list[str]:
     w, h = 900, int(image_h * 900 / image_w)
     image = cv2.resize(image, (w, h), interpolation=cv2.INTER_AREA)
 
-    cd_image = cv2.imread(R"image/cd.png", EFFECT_IMREAD_FLAG)
+    cd_image = cv2.imread(R"templates/cd.png", EFFECT_IMREAD_FLAG)
     h, w = cd_image.shape[:2]
     h, w = int(h * 900 / 1080), int(w * 900 / 1080)
     # h, w = int(h * image_w / 1080), int(w * image_w / 1080)
