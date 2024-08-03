@@ -53,8 +53,11 @@ RUNE_SIZE = SCREEN_WIDTH // 6
 RUNE_SIZE_SAMPLE = 150
 
 TEMPLATE_128_PATH = 'templates/template_128/'
-TEMPLATE_SAVE_PATH = f'E:/template_{RUNE_SIZE}/'
-FINAL_TEMPLATE_PATH = f'E:/template_{RUNE_SIZE}_final/'
+# TEMPLATE_SAVE_PATH = f'E:/template_{RUNE_SIZE}/'
+# FINAL_TEMPLATE_PATH = f'E:/template_{RUNE_SIZE}_final/'
+
+TEMPLATE_SAVE_PATH = f'templates/template_{RUNE_SIZE}/'
+FINAL_TEMPLATE_PATH = f'templates/template_{RUNE_SIZE}_final/'
 
 RACE_TEMPLATE_PATH = TEMPLATE_128_PATH + 'race/'
 FINAL_RACE_PATH = FINAL_TEMPLATE_PATH + 'race/'
