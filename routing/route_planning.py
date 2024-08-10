@@ -265,6 +265,42 @@ def get_indices_from_route(route: list[tuple[int, int]]|None = None) -> np.ndarr
     
     return indices
 
+def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: int, debug: bool = False) -> list[tuple[int, int]]:
+
+    rune_str = game.rune_str()
+    race_str = game.race_str()
+    min_match_str = game.min_match_str()
+    must_remove_str = game.must_remove_str()
+    setting_str = game.setting_str()
+
+    command = [
+        GET_ROUTE_EXE_PATH , '-i', str(iter), '-f', str(max_first_depth), '-d', str(max_depth),
+        '-rune', rune_str,'-race', race_str, '-min_match', min_match_str,
+        '-must', must_remove_str, '-setting', setting_str
+    ]
+
+    if debug:
+        print(f"{command=}\n")
+
+    # Execute the command and capture the output
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    # Check if the command was executed successfully
+    if result.returncode == 0:
+        if debug:
+            print("C++ program executed successfully")
+            print('stdout:\n', result.stdout)
+        final_route_str = result.stdout
+        final_route_str = final_route_str.replace("(", "").replace(")", "").replace("\n", "")
+        final_route_list = final_route_str.split(", ")
+        final_route = [(int(final_route_list[i]), int(final_route_list[i + 1])) for i in range(0, len(final_route_list), 2)]
+        return final_route
+    else:
+        # If there was an error, print the error message from stderr
+        print("Error executing the C++ program:")
+        print(result.stderr)
+        return []
+
     
 @timeit
 def main():

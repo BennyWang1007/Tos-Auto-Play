@@ -1,6 +1,8 @@
 import os
+import subprocess
 import time
-# import psutil
+
+import cv2
 import numpy as np
 
 from tosgame.MoveDir import MoveDir
@@ -57,24 +59,7 @@ def drop_indices(board_indices: np.ndarray) -> np.ndarray:
     """
     Drop the runes that are eliminated and fill the empty spaces.
     """
-    # new_board_indices = board_indices.copy()
-    # for x in range(COL_NUM):
-    #     new_col = []
-    #     for y in range(ROW_NUM):
-    #         if board_indices[y, x] != COL_NUM * ROW_NUM:
-    #             new_col.append(board_indices[y, x])
-    #     new_col = [COL_NUM * ROW_NUM] * (ROW_NUM - len(new_col)) + new_col
-    #     new_board_indices[:, x] = new_col
     empty_idx = COL_NUM * ROW_NUM
-    # new_board_indices = np.zeros((ROW_NUM, COL_NUM), dtype=int)
-    # for x in range(COL_NUM):
-    #     cur_y = ROW_NUM - 1
-    #     for y in range(ROW_NUM-1, -1, -1):
-    #         if board_indices[y, x] != empty_idx:
-    #             new_board_indices[cur_y, x] = board_indices[y, x]
-    #             cur_y -= 1
-    #     for y in range(cur_y, -1, -1):
-    #         new_board_indices[y, x] = empty_idx
     for x in range(COL_NUM):
         cur_y = ROW_NUM - 1
         for y in range(ROW_NUM-1, -1, -1):
@@ -289,11 +274,36 @@ def get_adb_device() -> AdbDevice:
         
     if len(devices) == 0:
         print('Devices not found')
-        quit()
-    print(f'{devices=}')
+        # raise RuntimeError('No devices found')
+    elif len(devices) == 1:
+        print(f'{devices=}')
+        return devices[0]
+    else:
+        print(f'{devices=}')
+        print("Multiple devices found, please select one")
+        for i, device in enumerate(devices):
+            print(f"{i}: {device.serial}")
+        index = int(input("Enter the index of the device: "))
+        return devices[index]
     
-    return devices[0]
+def screencap(device: AdbDevice) -> np.ndarray:
+    sub_proc = subprocess.Popen(['adb', 'exec-out', 'screencap', '-p'], stdout=subprocess.PIPE)
+    assert sub_proc.stdout is not None
+    screenshot = sub_proc.stdout.read()
+    return cv2.imdecode(np.frombuffer(screenshot, np.uint8), cv2.IMREAD_COLOR)
 
+def get_args_from_complexity(complexity: Complexity) -> tuple[int, int, int]:
+    """Get the iter, max_first_depth, max_depth from complexity"""
+    if complexity == "Low":
+        return 20, 5, 6 # iter, max_first_depth, max_depth = 20, 5, 6
+    elif complexity == "Mid":
+        return 25, 6, 7 # iter, max_first_depth, max_depth = 25, 6, 7
+    elif complexity == "High":
+        return 30, 7, 9 # iter, max_first_depth, max_depth = 30, 7, 9
+    elif complexity == "Extreme":
+        return 35, 8, 10 # iter, max_first_depth, max_depth = 35, 8, 10
+    else:
+        raise ValueError(f"Invalid complexity: {complexity}")
 
 def race_str2int(race_str: str) -> int:
     if race_str == 'GOD' or race_str == '神': return 1

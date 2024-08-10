@@ -1,16 +1,19 @@
 from typing import Literal
 import configparser
 
-# import cv2
+import os
 import numpy as np
-# from cv2.typing import MatLike
 
 MatLike = np.ndarray
-
+Complexity = Literal["Low", "Mid", "High", "Extreme"]
 SeriesName = Literal["棋靈王", "林黛玉", "陳圓圓", "咒術"]
 
+# the directory of the project
+DIR = os.path.join(os.path.dirname(__file__), '..')
+
 config = configparser.ConfigParser()
-config.read('config.ini')
+config_path = os.path.join(DIR, 'config.ini')
+config.read(config_path)
 
 SCREEN_WIDTH = int(config['device']['screen_width'])
 SCREEN_HEIGHT = int(config['device']['screen_height'])
@@ -52,12 +55,14 @@ Do not modify these variable below this line unless you know what you are doing
 RUNE_SIZE = SCREEN_WIDTH // 6
 RUNE_SIZE_SAMPLE = 150
 
-TEMPLATE_128_PATH = 'templates/template_128/'
+TEMPLATE_128_PATH = os.path.join(DIR, 'templates', 'template_128/')
+TEMPLATE_SAVE_PATH = os.path.join(DIR, f'templates/template_{RUNE_SIZE}/')
+FINAL_TEMPLATE_PATH = os.path.join(DIR, f'templates/template_{RUNE_SIZE}_final/')
+
+CD_TEMPLATE_PATH = os.path.join(DIR, 'templates', 'cd.png')
+
 # TEMPLATE_SAVE_PATH = f'E:/template_{RUNE_SIZE}/'
 # FINAL_TEMPLATE_PATH = f'E:/template_{RUNE_SIZE}_final/'
-
-TEMPLATE_SAVE_PATH = f'templates/template_{RUNE_SIZE}/'
-FINAL_TEMPLATE_PATH = f'templates/template_{RUNE_SIZE}_final/'
 
 RACE_TEMPLATE_PATH = TEMPLATE_128_PATH + 'race/'
 FINAL_RACE_PATH = FINAL_TEMPLATE_PATH + 'race/'
@@ -77,16 +82,8 @@ RACE_SIZE = 68 * RUNE_SIZE // RUNE_SIZE_SAMPLE
 RACE_OFFSET = int(RUNE_SIZE * 0.6), 0
 RACE_OFFSET2 = RACE_OFFSET[0] + RACE_SIZE, RACE_OFFSET[1] + RACE_SIZE
 
-# print("SAMPLE_OFFSET:", SAMPLE_OFFSET)
-# print("SAMPLE_OFFSET2:", SAMPLE_OFFSET2)
-# print("OFFSET:", OFFSET)
-# print("OFFSET2:", OFFSET2)
-# print("RACE_OFFSET:", RACE_OFFSET)
-# print("RACE_OFFSET2:", RACE_OFFSET2)
-
 IMREAD_MODE = -1 # cv2.IMREAD_UNCHANGED
-# print("cv2.IMREAD_UNCHANGED:", cv2.IMREAD_UNCHANGED)
-GET_ROUTE_EXE_PATH = 'c++/get_route.exe'
+GET_ROUTE_EXE_PATH = os.path.join(DIR, 'c++', 'get_route.exe')
 
 SettingType = dict[str, list[str | tuple[str, int] | int]]
 

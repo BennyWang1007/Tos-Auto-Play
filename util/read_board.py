@@ -212,32 +212,35 @@ def read_board(device: AdbDevice|None = None, filepath: str|None = None, screens
             if device is None: device = get_adb_device()
             pic = device.screencap()
             screenshot = cv2.imdecode(np.frombuffer(pic, np.uint8), IMREAD_MODE)
-            # print('screenshot shape:', screenshot.shape)
+            # screenshot = screencap(device)
         else:
             assert os.path.exists(filepath), f'File {filepath} does not exist'
             screenshot = cv2.imread(filepath, IMREAD_MODE)
 
-    screenshot_3channel = screenshot.copy()
-    if screenshot_3channel.shape[2] != 3:
-        screenshot_3channel = cv2.cvtColor(screenshot_3channel, cv2.COLOR_BGRA2BGR)
+    # print(f"{screenshot.shape=}")
 
-    if screenshot.shape[2] != 4:
-        screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGR2BGRA)
+    if screenshot.shape[2] != 3:
+        screenshot_3channel = screenshot[:, :, :3]
+    else:
+        screenshot_3channel = screenshot
         
-
     s_x, s_y = get_grid_loc(0, 0)
     e_x, e_y = get_grid_loc(COL_NUM, ROW_NUM)
-    screenshot = screenshot[s_y:e_y, s_x:e_x]
-    screenshot = cv2.resize(screenshot, (screenshot.shape[1] // SCALE, screenshot.shape[0] // SCALE))
+    board_img = screenshot[s_y:e_y, s_x:e_x]
+    board_img = cv2.resize(board_img, (board_img.shape[1] // SCALE, board_img.shape[0] // SCALE))
+
+    if board_img.shape[2] != 4:
+        board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2BGRA)
 
     if DEBUG:
+        print(f"board_img shape: {board_img.shape}, 3channel shape: {screenshot_3channel.shape}")
         print(f'Preprocessing time: {time.time() - start_time:.2f}s')
         start_time = time.time()
 
     runes = []
     for y in range(ROW_NUM):
         for x in range(COL_NUM):
-            rune, sim = match_rune(screenshot, (x, y), threshold=0.8)
+            rune, sim = match_rune(board_img, (x, y), threshold=0.8)
             runes.append(rune)
             # print(rune.__repr__)
         #     print(f'{sim:.2f}', end=' ')

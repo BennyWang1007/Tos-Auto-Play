@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from util.constant import SettingType
+from util.constant import SettingType, CD_TEMPLATE_PATH
 from util.utils import timeit
 from .constant import *
 
@@ -144,6 +144,16 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
     return effects_name
 
 
+cd_img = cv2.imread(CD_TEMPLATE_PATH, EFFECT_IMREAD_FLAG)
+h, w = cd_img.shape[:2]
+h, w = int(h * 900 / 1080), int(w * 900 / 1080)
+# h, w = int(h * image_w / 1080), int(w * image_w / 1080)
+cd_img = cv2.resize(cd_img, (w, h), interpolation=cv2.INTER_AREA)
+# print('cd_image.shape:', cd_image.shape)
+cd_mask = cd_img[:, :, 3]
+cd_img = cd_img[:, :, :3]
+
+
 @timeit
 def read_effects(image: MatLike) -> list[str]:
     """
@@ -158,26 +168,46 @@ def read_effects(image: MatLike) -> list[str]:
         read_effect_templates()
     
     image = image.copy()
+
+    # resize the image to 900 width
     image_h, image_w = image.shape[:2]
     w, h = 900, int(image_h * 900 / image_w)
     image = cv2.resize(image, (w, h), interpolation=cv2.INTER_AREA)
 
-    cd_image = cv2.imread(R"templates/cd.png", EFFECT_IMREAD_FLAG)
-    h, w = cd_image.shape[:2]
-    h, w = int(h * 900 / 1080), int(w * 900 / 1080)
-    # h, w = int(h * image_w / 1080), int(w * image_w / 1080)
-    cd_image = cv2.resize(cd_image, (w, h), interpolation=cv2.INTER_AREA)
-    # print('cd_image.shape:', cd_image.shape)
-    mask = cd_image[:, :, 3]
-    cd_image = cd_image[:, :, :3]
-    res = cv2.matchTemplate(image, cd_image, cv2.TM_CCOEFF_NORMED, mask=mask)
+    res = cv2.matchTemplate(image, cd_img, cv2.TM_CCOEFF_NORMED, mask=cd_mask)
+    res[np.isinf(res)] = 0
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
-    threshold = np.array([0.8])
-    max_locs_ = np.where(res >= threshold)
+    max_locs = np.where(res >= [0.9])
+
+    # remove the locations that are too close to edge
+    max_locs_ = []
+    for i in range(len(max_locs[0])):
+        if max_locs[0][i] < 30 or max_locs[0][i] > w - 30 or max_locs[1][i] < 30 or max_locs[1][i] > h - 30:
+            continue
+        max_locs_.append((max_locs[0][i], max_locs[1][i]))
+    # print(f'{max_locs_=}, {max_val=} at {max_loc=}')
+    # print(res >= [0.8])
+    
+    # for pt in zip(*max_locs):
+    #     cv2.rectangle(image, pt, (pt[0] + EFFECT_SIZE + 10, pt[1] + int(image_h * 900 / 5. / image_w)), (0, 0, 255), 2)
+    
+    # for x, y in zip(max_locs_[0], max_locs_[1]):
+    #     cv2.rectangle(image, (x, y), (x + EFFECT_SIZE + 10, y + int(image_h * 900 / 5. / image_w)), (0, 0, 255), 2)
+
+    # print(f'{max_locs=}, {max_locs_=}, {max_val=} at {max_loc=}')
+    # resize the image to 0.5 times the original size
+    # image_test = cv2.resize(image, (0, 0), fx=0.5, fy=0.5)
+    # res_test = cv2.resize(res, (0, 0), fx=0.5, fy=0.5)
+    # cv2.imshow('image', image_test)
+    # cv2.imshow('res', res_test)
+    # # cv2.imshow('cd', cd_image)
+    # # cv2.imshow('res', res)
+    # cv2.waitKey(0)
 
     # convert max_locs to a list of tuples
-    max_locs: list[tuple[int, int]] = list(zip(max_locs_[1], max_locs_[0]))
+    # max_locs: list[tuple[int, int]] = list(zip(max_locs_[1], max_locs_[0]))
+    max_locs = max_locs_
 
     # remove all the locations that are too close to each other, keep the one with the highest value
     max_locs = sorted(max_locs, key=lambda x: res[x[1], x[0]], reverse=True)
@@ -214,6 +244,9 @@ def read_effects(image: MatLike) -> list[str]:
         
     results = []
     for image_ in image_list:
+        # print('image_.shape:', image_.shape)
+        # cv2.imshow('image_', image_)
+        # cv2.waitKey(0)
         result = read_effect(image_, 0.8)
         # print('scale_result:', read_effect_scale(image_, 0.8))
         # print(result)
