@@ -1,9 +1,12 @@
 import subprocess
+
 from tosgame.TosGame import TosGame
-from util.read_board import *
-from effect.read_effect import *
-from .route_planning import *
 from util.constant import GET_ROUTE_EXE_PATH
+from util.read_board import read_board
+from util.utils import eliminate_once_with_indices
+
+from .route_planning import get_indices_from_route, print_two_board
+
 
 def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: int, debug: bool) -> list[tuple[int, int]]:
 
@@ -14,9 +17,15 @@ def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: 
     setting_str = game.setting_str()
 
     command = [
-        GET_ROUTE_EXE_PATH , '-i', str(iter), '-f', str(max_first_depth), '-d', str(max_depth),
-        '-rune', rune_str,'-race', race_str, '-min_match', min_match_str,
-        '-must', must_remove_str, '-setting', setting_str
+        GET_ROUTE_EXE_PATH,
+        '-i', str(iter),
+        '-f', str(max_first_depth),
+        '-d', str(max_depth),
+        '-rune', rune_str,
+        '-race', race_str,
+        '-min_match', min_match_str,
+        '-must', must_remove_str,
+        '-setting', setting_str,
     ]
     # print(f"{command=}\n")
     # Execute the command and capture the output

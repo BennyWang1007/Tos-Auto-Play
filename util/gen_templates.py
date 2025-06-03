@@ -1,15 +1,26 @@
+import os
 import cv2
 import numpy as np
-import os
-from util.constant import *
-from effect.constant import EFFECT_NAMES
+
+from util.constant import (
+    FINAL_RACE_PATH,
+    FINAL_TEMPLATE_PATH,
+    OFFSET,
+    OFFSET2,
+    RACE_SIZE,
+    RACE_TEMPLATE_PATH,
+    RUNE_SIZE,
+    TEMPLATE_128_PATH,
+    TEMPLATE_SAVE_PATH,
+)
+
 from effect.read_effect import gen_templates_effect
+
 
 def gen_templates() -> None:
     """
     Generate templates for the board recognition.
     """
-
     assert os.path.exists(TEMPLATE_128_PATH), f'Path {TEMPLATE_128_PATH} does not exist'
 
     if not os.path.exists(TEMPLATE_SAVE_PATH):
@@ -21,11 +32,10 @@ def gen_templates() -> None:
     if not os.path.exists(FINAL_TEMPLATE_PATH + 'race/'):
         os.makedirs(FINAL_TEMPLATE_PATH + 'race/')
 
-    
     # extra_image = cv2.imread(TEMPLATE_128_PATH + 'extra.png', cv2.IMREAD_UNCHANGED)
     # size = (int(extra_image.shape[1] * 150 / RUNE_SIZE), int(extra_image.shape[0] * 150 / RUNE_SIZE))
     # extra_image = cv2.resize(extra_image, size)
-        
+
     print('Generating templates...')
     generate_count = 0
 
@@ -50,19 +60,27 @@ def gen_templates() -> None:
                 if char in no_extension:
                     found = True
                     break
-            if found: continue
+            if found:
+                continue
 
-            
             for overlay_file in os.listdir(TEMPLATE_128_PATH + 'extra/'):
                 if overlay_file.endswith('.png'):
-                    if overlay_file == "Lin.png": suffix = "Lin"
-                    elif overlay_file == "Bell.png": suffix = "Bell"
-                    elif overlay_file == "BunBlackChess.png": suffix = "BChess"
-                    elif overlay_file == "BunWhiteChess.png": suffix = "WChess"
-                    elif overlay_file == "ShieldGem.png": suffix = "s"
-                    elif overlay_file == "Jujutsu.png": suffix = "Jujutsu"
-                    elif overlay_file == "FireMark.png": suffix = "FireMark"
-                    else: raise ValueError(f'Unknown file {overlay_file}')
+                    if overlay_file == "Lin.png":
+                        suffix = "Lin"
+                    elif overlay_file == "Bell.png":
+                        suffix = "Bell"
+                    elif overlay_file == "BunBlackChess.png":
+                        suffix = "BChess"
+                    elif overlay_file == "BunWhiteChess.png":
+                        suffix = "WChess"
+                    elif overlay_file == "ShieldGem.png":
+                        suffix = "s"
+                    elif overlay_file == "Jujutsu.png":
+                        suffix = "Jujutsu"
+                    elif overlay_file == "FireMark.png":
+                        suffix = "FireMark"
+                    else:
+                        raise ValueError(f'Unknown file {overlay_file}')
 
                     overlayed_name = file.split('.')[0] + f'_{suffix}.png'
                     if os.path.exists(TEMPLATE_SAVE_PATH + overlayed_name):
@@ -111,10 +129,7 @@ def gen_templates() -> None:
 #                 os.makedirs(EFFECT_PATH)
 #             template = cv2.imread(f'{original_effect_path}/ICON{effect_id}.png', cv2.IMREAD_UNCHANGED)
 #             cv2.imwrite(f'{EFFECT_PATH}ICON{effect_id}.png', template)
-    
 
-
-                    
 
 if __name__ == '__main__':
     gen_templates()

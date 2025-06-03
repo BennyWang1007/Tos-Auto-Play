@@ -1,13 +1,16 @@
+import subprocess
+import time
 from multiprocessing import Pool
 
 import numpy as np
 
-from util.read_board import read_templates, read_board
-from tosgame.TosGame import TosGame
-from tosgame.Runes import Runes, Rune
 from tosgame.MoveDir import MoveDir
-from util.utils import *
-from util.constant import ROW_NUM, COL_NUM, MAX_DEPTH 
+from tosgame.Runes import Rune
+from tosgame.TosGame import TosGame
+from util.constant import COL_NUM, GET_ROUTE_EXE_PATH, MAX_DEPTH, ROW_NUM
+from util.read_board import read_board, read_templates
+from util.utils import evaluate_with_indices, print_two_board, timeit
+
 
 # obsolete: to be removed
 def move2int(move: tuple[int, int]) -> int:
@@ -26,6 +29,7 @@ def move2int(move: tuple[int, int]) -> int:
         return MoveDir.NONE.value
     else:
         raise ValueError(f'Invalid move: {move}')
+
 
 # obsolete: to be removed
 def board_moves(board: np.ndarray, route: list) -> tuple[np.ndarray, bool]:
@@ -52,6 +56,7 @@ def get_runeboard_from_indices(board: list[Rune], board_indices: np.ndarray) -> 
             new_board[y, x] = board[board_indices[y, x]]
     return new_board
 
+
 # TODO: update to indices form if neccesary
 def get_unconnected_count(rune_board: np.ndarray) -> int:
     """
@@ -71,6 +76,7 @@ def get_unconnected_count(rune_board: np.ndarray) -> int:
                     continue
                 unconnected_count += 1
     return unconnected_count
+
 
 # TODO: update to indices form if neccesary
 def dfs_cluster(rune_board: np.ndarray, visited: np.ndarray, position: tuple[int, int]) -> None:
@@ -107,7 +113,7 @@ def get_cluster_count(rune_board: np.ndarray) -> int:
 
 
 def get_board_score(game: TosGame, board: list[Rune], board_indices: np.ndarray, current_pos: tuple) -> float:
-    
+
     # rune_board = get_runeboard_from_indices(board, board_indices)
     # unconnected_count = get_unconnected_count(rune_board)
     # cluster_count = get_cluster_count(rune_board)
@@ -118,15 +124,18 @@ def get_board_score(game: TosGame, board: list[Rune], board_indices: np.ndarray,
         return -1
     # return f_c * 100 + c * 20 + eli * 1
     score = f_c * 100 + c * 20 + eli * 1
-    
+
     IDX_EMPTY = COL_NUM * ROW_NUM
 
-    if indices_first[0, 0] == IDX_EMPTY: score += 10
-    if indices_first[ROW_NUM - 1, 0] == IDX_EMPTY: score += 10
-    if indices_first[0, COL_NUM - 1] == IDX_EMPTY: score += 10
-    if indices_first[ROW_NUM - 1, COL_NUM - 1] == IDX_EMPTY: score += 10
+    if indices_first[0, 0] == IDX_EMPTY:
+        score += 10
+    if indices_first[ROW_NUM - 1, 0] == IDX_EMPTY:
+        score += 10
+    if indices_first[0, COL_NUM - 1] == IDX_EMPTY:
+        score += 10
+    if indices_first[ROW_NUM - 1, COL_NUM - 1] == IDX_EMPTY:
+        score += 10
 
-    
     # for x in range(COL_NUM):
     #     score += 10 * (indices_first[0, x] == IDX_EMPTY)
     #     score += 10 * (indices_first[ROW_NUM - 1, x] == IDX_EMPTY)
@@ -137,18 +146,22 @@ def get_board_score(game: TosGame, board: list[Rune], board_indices: np.ndarray,
 
     return score
 
+
 def is_valid_move(x: int, y: int) -> bool:
     return 0 <= x < COL_NUM and 0 <= y < ROW_NUM
 
-def get_next_board_indices(current_board_indices: np.ndarray, current_position: tuple, next_position: tuple) -> np.ndarray:
 
+def get_next_board_indices(current_board_indices: np.ndarray, current_position: tuple, next_position: tuple) -> np.ndarray:
     new_board_indices = np.copy(current_board_indices)
     new_board_indices[current_position[1], current_position[0]] = current_board_indices[next_position[1], next_position[0]]
     new_board_indices[next_position[1], next_position[0]] = current_board_indices[current_position[1], current_position[0]]
-    
     return new_board_indices
 
-def dfs(game: TosGame, current_position: tuple, current_route: list[tuple[int, int]], current_board_indices: np.ndarray|None= None, max_depth: int=MAX_DEPTH) -> tuple[float, list[tuple[int, int]]]:
+
+def dfs(
+    game: TosGame, current_position: tuple, current_route: list[tuple[int, int]],
+    current_board_indices: np.ndarray | None = None, max_depth: int = MAX_DEPTH
+) -> tuple[float, list[tuple[int, int]]]:
     if current_board_indices is None:
         current_board_indices = np.reshape(np.arange(COL_NUM * ROW_NUM), (ROW_NUM, COL_NUM))
     if len(current_route) > max_depth:
@@ -157,8 +170,8 @@ def dfs(game: TosGame, current_position: tuple, current_route: list[tuple[int, i
     best_score = float('-inf')
     best_route = []
 
-    for move in [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]:  # Represents left, right, up, down, stop
     # for move in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 0)]:
+    for move in [(-1, 0), (1, 0), (0, -1), (0, 1), (0, 0)]:  # Represents left, right, up, down, stop
         if move == (0, 0):
             score, route = get_board_score(game, game.board, current_board_indices, current_position), current_route
             if score > best_score:
@@ -181,8 +194,9 @@ def dfs(game: TosGame, current_position: tuple, current_route: list[tuple[int, i
                         best_route = route
     return best_score, best_route
 
+
 # @timeit
-def maximize_score(board: TosGame, max_depth: int=MAX_DEPTH):
+def maximize_score(board: TosGame, max_depth: int = MAX_DEPTH):
     assert isinstance(board, TosGame)
     best_score = float('-inf')
     best_route = []
@@ -192,32 +206,37 @@ def maximize_score(board: TosGame, max_depth: int=MAX_DEPTH):
         if score > best_score:
             best_score = score
             best_route = route
-    
+
     return best_score, best_route
+
 
 def dfs_wrapper(args):
     return dfs(*args)
 
-def maximize_score_parallel(board: TosGame, max_depth: int=MAX_DEPTH):
+
+def maximize_score_parallel(board: TosGame, max_depth: int = MAX_DEPTH):
     assert isinstance(board, TosGame)
     best_score = float('-inf')
     best_route = []
 
     start_positions = [(x, y) for x in range(COL_NUM) for y in range(ROW_NUM)]
-    args = [(board.copy(), start_position, [start_position], None, max_depth) for start_position in start_positions]
+    args = [(board.copy(), start_position, [start_position], None, max_depth)
+            for start_position in start_positions]
 
     with Pool() as pool:
         results = list(pool.map(dfs_wrapper, args))
-    
+
     for score, route in results:
         if score > best_score:
             best_score = score
             best_route = route
-    
+
     return best_score, best_route
 
+
 @timeit
-def route_planning(board: TosGame, iter: int, max_first_depth: int=8, max_depth: int=10, log_time: bool = False) -> tuple[int, list[tuple[int, int]]]:
+def route_planning(board: TosGame, iter: int, max_first_depth: int = 8,
+                   max_depth: int = 10, log_time: bool = False) -> tuple[int, list[tuple[int, int]]]:
     """
     Given a board, return the best score and best route.
     """
@@ -235,7 +254,7 @@ def route_planning(board: TosGame, iter: int, max_first_depth: int=8, max_depth:
         print(f'First depth: {time.time() - time_start:.2f}s')
         time_start = time.time()
         max_iter = iter
-    
+
     while iter > 0 and score > max_score:
         max_score = score
         if len(final_route) == 0:
@@ -252,8 +271,8 @@ def route_planning(board: TosGame, iter: int, max_first_depth: int=8, max_depth:
     return max_score, final_route
 
 
-def get_indices_from_route(route: list[tuple[int, int]]|None = None) -> np.ndarray:
-    
+def get_indices_from_route(route: list[tuple[int, int]] | None = None) -> np.ndarray:
+
     indices = np.reshape(np.arange(COL_NUM * ROW_NUM), (ROW_NUM, COL_NUM))
     if route is None or len(route) == 0:
         return indices
@@ -262,8 +281,9 @@ def get_indices_from_route(route: list[tuple[int, int]]|None = None) -> np.ndarr
     for i in range(1, len(route)):
         indices[route[i-1][1], route[i-1][0]] = indices[route[i][1], route[i][0]]
     indices[route[-1][1], route[-1][0]] = start_rune
-    
+
     return indices
+
 
 def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: int, debug: bool = False) -> list[tuple[int, int]]:
 
@@ -274,9 +294,15 @@ def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: 
     setting_str = game.setting_str()
 
     command = [
-        GET_ROUTE_EXE_PATH , '-i', str(iter), '-f', str(max_first_depth), '-d', str(max_depth),
-        '-rune', rune_str,'-race', race_str, '-min_match', min_match_str,
-        '-must', must_remove_str, '-setting', setting_str
+        GET_ROUTE_EXE_PATH,
+        '-i', str(iter),
+        '-f', str(max_first_depth),
+        '-d', str(max_depth),
+        '-rune', rune_str,
+        '-race', race_str,
+        '-min_match', min_match_str,
+        '-must', must_remove_str,
+        '-setting', setting_str
     ]
 
     if debug:
@@ -293,7 +319,8 @@ def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: 
         final_route_str = result.stdout
         final_route_str = final_route_str.replace("(", "").replace(")", "").replace("\n", "")
         final_route_list = final_route_str.split(", ")
-        final_route = [(int(final_route_list[i]), int(final_route_list[i + 1])) for i in range(0, len(final_route_list), 2)]
+        final_route = [(int(final_route_list[i]), int(final_route_list[i + 1]))
+                       for i in range(0, len(final_route_list), 2)]
         return final_route
     else:
         # If there was an error, print the error message from stderr
@@ -301,10 +328,10 @@ def route_planning_c(game: TosGame, iter: int, max_first_depth: int, max_depth: 
         print(result.stderr)
         return []
 
-    
+
 @timeit
 def main():
-    global BOARD_FOR_ROUTE
+    # global BOARD_FOR_ROUTE
     # device = get_adb_device()
     read_templates()
 
@@ -316,7 +343,7 @@ def main():
 
     # board = read_board(device)
     board = read_board(None, 'E:/screenshot2.png')
-    BOARD_FOR_ROUTE = board.board
+    # BOARD_FOR_ROUTE = board.board
     board.print_board()
 
     # first_combo, combo, totol_eliminated = evaluate_board(board.board, COL_NUM, ROW_NUM)
@@ -337,10 +364,8 @@ def main():
     print(f'{f_c=}, {c=}, {eli=}')
     # print_board(board.board, indices_first)
 
-    
     # board.print_board()
+
 
 if __name__ == "__main__":
     main()
-
-

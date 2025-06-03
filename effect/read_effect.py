@@ -1,18 +1,26 @@
-
 import os
-from typing import Tuple
 
 import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from util.constant import SettingType, CD_TEMPLATE_PATH
+from util.constant import CD_TEMPLATE_PATH, SettingType
 from util.utils import timeit
-from .constant import *
+from .constant import (
+    EFFECT_MASKS,
+    EFFECT_NAMES,
+    EFFECT_PATH,
+    EFFECT_SCALE,
+    EFFECT_SIZE,
+    EFFECT_TEMPLATES,
+    EFFECT_TEMPLATE_SIZE,
+    FINAL_EFFECT_PATH,
+)
 
 EFFECT_IMREAD_FLAG = cv2.IMREAD_UNCHANGED
 
 to_setting: dict[str, dict] = {}
+
 
 def gen_templates_effect():
     count = 0
@@ -22,8 +30,12 @@ def gen_templates_effect():
             effect_id = str(effect_id).zfill(3)
             if not os.path.exists(FINAL_EFFECT_PATH):
                 os.makedirs(FINAL_EFFECT_PATH)
-            template = cv2.imread(f'{EFFECT_PATH}/ICON{effect_id}.png', cv2.IMREAD_UNCHANGED)
-            template = cv2.resize(template, (EFFECT_TEMPLATE_SIZE, EFFECT_TEMPLATE_SIZE))
+            template = cv2.imread(
+                f'{EFFECT_PATH}/ICON{effect_id}.png', cv2.IMREAD_UNCHANGED
+            )
+            template = cv2.resize(
+                template, (EFFECT_TEMPLATE_SIZE, EFFECT_TEMPLATE_SIZE)
+            )
             cv2.imwrite(f'{FINAL_EFFECT_PATH}ICON{effect_id}.png', template)
             count += 1
 
@@ -51,7 +63,9 @@ def set_toSetting() -> None:
         elif effect_name.startswith('ELI'):
             colors = effect_name[4:]
             color_list = [color for color in colors if color != '+']
-            to_setting[effect_name] = {'eli_color': [color for color in color_list]}
+            to_setting[effect_name] = {
+                'eli_color': [color for color in color_list]
+            }
 
         else:
             to_setting[effect_name] = {}
@@ -92,6 +106,7 @@ def read_effect_templates() -> None:
 
     # print(EFFECT_TEMPLATES)
 
+
 # @timeit
 def read_effect(image: np.ndarray, threshold=0.75) -> list:
     effects: list = []
@@ -111,7 +126,7 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
             loc = np.where(res >= threshold)
             if len(loc[0]) > 0:
                 found_loc.append((loc[1][0], loc[0][0]))
-            
+
     found_loc = list(set(found_loc))
     if len(found_loc) == 0:
         return []
@@ -135,7 +150,7 @@ def read_effect(image: np.ndarray, threshold=0.75) -> list:
                     max_res = max_val
                     max_name = effect_name
         results.append((max_name, max_res))
-    # conbine the effects with the same 
+    # conbine the effects with the same
     effects = [(name, round(val, 5)) for name, val in sorted(results, key=lambda x: x[1], reverse=True)]
     effects = [(name, max([val for n, val in effects if n == name])) for name, val in effects]
     effects = list(set(effects))
@@ -166,7 +181,7 @@ def read_effects(image: MatLike) -> list[str]:
 
     if not EFFECT_TEMPLATES:
         read_effect_templates()
-    
+
     image = image.copy()
 
     # resize the image to 900 width
@@ -188,10 +203,10 @@ def read_effects(image: MatLike) -> list[str]:
         max_locs_.append((max_locs[0][i], max_locs[1][i]))
     # print(f'{max_locs_=}, {max_val=} at {max_loc=}')
     # print(res >= [0.8])
-    
+
     # for pt in zip(*max_locs):
     #     cv2.rectangle(image, pt, (pt[0] + EFFECT_SIZE + 10, pt[1] + int(image_h * 900 / 5. / image_w)), (0, 0, 255), 2)
-    
+
     # for x, y in zip(max_locs_[0], max_locs_[1]):
     #     cv2.rectangle(image, (x, y), (x + EFFECT_SIZE + 10, y + int(image_h * 900 / 5. / image_w)), (0, 0, 255), 2)
 
@@ -219,7 +234,7 @@ def read_effects(image: MatLike) -> list[str]:
                 else:
                     max_locs[i] = (-1, -1)
     max_locs = [loc for loc in max_locs if loc != (-1, -1)]
-    
+
     # print(max_val)
     # print(max_loc)
     # cv2.imshow('image', image)
@@ -241,7 +256,7 @@ def read_effects(image: MatLike) -> list[str]:
     else:
         print('CD not found')
         # image_list.append(image)
-        
+
     results = []
     for image_ in image_list:
         # print('image_.shape:', image_.shape)
@@ -256,8 +271,6 @@ def read_effects(image: MatLike) -> list[str]:
     # print(results)
     return results
 
-
- 
 
 def gen_board_setting(effects: list[str]) -> SettingType:
 
@@ -278,7 +291,6 @@ def gen_board_setting(effects: list[str]) -> SettingType:
                 # results.update(setting)
 
     return results
-
 
 
 if __name__ == '__main__':

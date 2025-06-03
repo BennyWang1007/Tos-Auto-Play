@@ -1,8 +1,7 @@
-from typing import Literal
-import configparser
-
 import os
+import configparser
 import numpy as np
+from typing import Literal
 
 MatLike = np.ndarray
 Complexity = Literal["Low", "Mid", "High", "Extreme"]
@@ -27,6 +26,7 @@ ROW_NUM = 5
 MODE = 'random'
 MAX_DEPTH = 12
 
+
 def convert_series_name(series: str) -> SeriesName:
     if series == "chess":
         return "棋靈王"
@@ -38,13 +38,16 @@ def convert_series_name(series: str) -> SeriesName:
         return "咒術"
     else:
         raise ValueError(f"Invalid series name: {series}")
+
+
 if config['template']['series'] == "none":
     TEMPLATE_LOAD_SERIES = []
 elif config['template']['series'] == "all":
     TEMPLATE_LOAD_SERIES = ["棋靈王", "林黛玉", "陳圓圓", "咒術"]
 else:
     TEMPLATE_LOAD_SERIES = config['template']['series'].split(', ')
-    TEMPLATE_LOAD_SERIES = [convert_series_name(series) for series in TEMPLATE_LOAD_SERIES]
+    TEMPLATE_LOAD_SERIES = [convert_series_name(series)
+                            for series in TEMPLATE_LOAD_SERIES]
 # print(TEMPLATE_LOAD_SERIES)
 # TEMPLATE_LOAD_SERIES: list[SeriesName] = ["林黛玉", "陳圓圓"]
 
@@ -61,8 +64,8 @@ FINAL_TEMPLATE_PATH = os.path.join(DIR, f'templates/template_{RUNE_SIZE}_final/'
 
 CD_TEMPLATE_PATH = os.path.join(DIR, 'templates', 'cd.png')
 
-# TEMPLATE_SAVE_PATH = f'E:/template_{RUNE_SIZE}/'
-# FINAL_TEMPLATE_PATH = f'E:/template_{RUNE_SIZE}_final/'
+TEMPLATE_SAVE_PATH = f'E:/template_{RUNE_SIZE}/'
+FINAL_TEMPLATE_PATH = f'E:/template_{RUNE_SIZE}_final/'
 
 RACE_TEMPLATE_PATH = TEMPLATE_128_PATH + 'race/'
 FINAL_RACE_PATH = FINAL_TEMPLATE_PATH + 'race/'
@@ -82,7 +85,7 @@ RACE_SIZE = 68 * RUNE_SIZE // RUNE_SIZE_SAMPLE
 RACE_OFFSET = int(RUNE_SIZE * 0.6), 0
 RACE_OFFSET2 = RACE_OFFSET[0] + RACE_SIZE, RACE_OFFSET[1] + RACE_SIZE
 
-IMREAD_MODE = -1 # cv2.IMREAD_UNCHANGED
+IMREAD_MODE = -1  # cv2.IMREAD_UNCHANGED
 GET_ROUTE_EXE_PATH = os.path.join(DIR, 'c++', 'get_route.exe')
 
 SettingType = dict[str, list[str | tuple[str, int] | int]]
@@ -95,7 +98,7 @@ rune_templates: dict[str, list[MatLike]] = {
     'grass': [],
     'light': [],
     'dark': [],
-    'heart': [], 
+    'heart': [],
     'hidden': []
 }
 
@@ -106,7 +109,7 @@ rune_attributes: dict[str, dict[int, tuple[bool, bool, bool]]] = {
     'grass': {},
     'light': {},
     'dark': {},
-    'heart': {}, 
+    'heart': {},
     'hidden': {}
 }
 
@@ -116,34 +119,32 @@ rune_names: dict[str, list[str]] = {
     'grass': [],
     'light': [],
     'dark': [],
-    'heart': [], 
+    'heart': [],
     'hidden': []
 }
-
-
 
 
 FIXED_BOARD: dict[tuple[int, int], list[int]] = {
     (3, 3): [3, 3, 1] +
             [2, 1, 2] +
-            [3, 2, 1]
-    ,
+            [3, 2, 1],
+
     (4, 4): [3, 3, 1, 1] +
             [2, 1, 2, 2] +
             [3, 1, 2, 1] +
-            [3, 2, 1, 1]
-    ,
+            [3, 2, 1, 1],
+
     (5, 4): [4, 3, 1, 1, 4] +
             [2, 1, 2, 2, 3] +
             [3, 1, 2, 1, 4] +
-            [3, 2, 1, 1, 4]
-    ,
+            [3, 2, 1, 1, 4],
+
     (5, 5): [2, 6, 3, 1, 1] +
             [6, 3, 3, 4, 6] +
             [1, 5, 5, 1, 4] +
             [5, 2, 6, 6, 4] +
-            [2, 4, 1, 1, 2]
-    ,
+            [2, 4, 1, 1, 2],
+
     (6, 5): [4, 2, 5, 1, 4, 3] +
             [3, 6, 3, 2, 3, 3] +
             [3, 4, 2, 5, 2, 1] +

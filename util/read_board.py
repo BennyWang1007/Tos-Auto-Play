@@ -1,26 +1,44 @@
+import os
 import time
 
 import cv2
 import numpy as np
 from ppadb.device import Device as AdbDevice
 
-from effect.read_effect import read_effects, gen_board_setting
+from util.constant import (
+    COL_NUM,
+    FINAL_RACE_PATH,
+    FINAL_TEMPLATE_PATH,
+    IMREAD_MODE,
+    MatLike,
+    OFFSET,
+    OFFSET2,
+    RACE_OFFSET,
+    RACE_OFFSET2,
+    RUNE_SIZE,
+    ROW_NUM,
+    SCALE,
+    TEMPLATE_LOAD_SERIES,
+    race_template,
+    rune_attributes,
+    rune_templates,
+    rune_names,
+)
 from util.gen_templates import gen_templates
-from tosgame.TosGame import TosGame
+from util.utils import get_adb_device, get_grid_loc, race_str2int, timeit
+from effect.read_effect import gen_board_setting, read_effects
 from tosgame.Runes import Runes, Rune
+from tosgame.TosGame import TosGame
 
-from util.constant import *
-from util.utils import *
 
 def read_templates() -> None:
     """
     Read templates for the board recognition.
     """
-
     if not os.path.exists(FINAL_TEMPLATE_PATH):
         gen_templates()
     assert os.path.exists(FINAL_TEMPLATE_PATH), f'Path {FINAL_TEMPLATE_PATH} does not exist'
-    
+
     global rune_templates, rune_attributes, rune_names, race_template
 
     load_count = 0
@@ -30,40 +48,57 @@ def read_templates() -> None:
             file_no_extension = file.split('.')[0]
 
             # skip for series
-            if file_no_extension.endswith('Lin') and not '林黛玉' in TEMPLATE_LOAD_SERIES: continue
-            if file_no_extension.endswith('Chen') and not '陳圓圓' in TEMPLATE_LOAD_SERIES: continue
-            if file_no_extension.endswith('Chess') and not '棋靈王' in TEMPLATE_LOAD_SERIES: continue
-            if file_no_extension.endswith('Jujutsu') and not '咒術' in TEMPLATE_LOAD_SERIES: continue
+            if (
+                file_no_extension.endswith('Lin') and '林黛玉' not in TEMPLATE_LOAD_SERIES
+                or file_no_extension.endswith('Chen') and '陳圓圓' not in TEMPLATE_LOAD_SERIES
+                or file_no_extension.endswith('Chess') and '棋靈王' not in TEMPLATE_LOAD_SERIES
+                or file_no_extension.endswith('Jujutsu') and '咒術' not in TEMPLATE_LOAD_SERIES
+            ):
+                continue
             rune_type = ''
             untouchable = False
             eliminable = True
             must_remove = False
-            if file[0] == 'w': rune_type = 'water'
-            elif file[0] == 'f': rune_type = 'fire'
-            elif file[0] == 'p': rune_type = 'grass'
-            elif file[0] == 'l': rune_type = 'light'
-            elif file[0] == 'd': rune_type = 'dark'
-            elif file[0] == 'h': rune_type = 'heart'
-            elif file[0] == 'q': rune_type = 'hidden'
-            else: continue
+            if file[0] == 'w':
+                rune_type = 'water'
+            elif file[0] == 'f':
+                rune_type = 'fire'
+            elif file[0] == 'p':
+                rune_type = 'grass'
+            elif file[0] == 'l':
+                rune_type = 'light'
+            elif file[0] == 'd':
+                rune_type = 'dark'
+            elif file[0] == 'h':
+                rune_type = 'heart'
+            elif file[0] == 'q':
+                rune_type = 'hidden'
+            else:
+                continue
 
             load_count += 1
 
-            if '0' in file: must_remove = False # rune ready to be frozen
-            elif '1' in file: eliminable = False # frozen rune by 3 turns
-            elif '2' in file: eliminable = False # frozen rune by 2 turns
-            elif '3' in file: eliminable = False # frozen rune by 1 turn
+            if '0' in file:
+                must_remove = False  # rune ready to be frozen
+            elif '1' in file:
+                eliminable = False  # frozen rune by 3 turns
+            elif '2' in file:
+                eliminable = False  # frozen rune by 2 turns
+            elif '3' in file:
+                eliminable = False  # frozen rune by 1 turn
 
-            if 'x' in file: untouchable = True # 風化符石
-            if 'k' in file: must_remove = True # 腐化符石
+            if 'x' in file:
+                untouchable = True  # 風化符石
+            if 'k' in file:
+                must_remove = True  # 腐化符石
 
             template = cv2.imread(FINAL_TEMPLATE_PATH + file, IMREAD_MODE)
-            
+
             # # template = template[SAMPLE_OFFSET:SAMPLE_OFFSET + SAMPLE_SIZE, SAMPLE_OFFSET:SAMPLE_OFFSET + SAMPLE_SIZE]
             # s = SAMPLE_OFFSET * RUNE_SIZE // RUNE_SIZE_SAMPLE
             # e = (SAMPLE_OFFSET + SAMPLE_SIZE) * RUNE_SIZE // RUNE_SIZE_SAMPLE
             # template = template[s:e, s:e]
-            
+
             template = cv2.resize(template, (template.shape[1] // SCALE, template.shape[0] // SCALE))
 
             if rune_templates.get(rune_type) is None:
@@ -74,7 +109,6 @@ def read_templates() -> None:
                 rune_templates[rune_type].append(template)
 
             rune_attributes[rune_type][idx] = (untouchable, eliminable, must_remove)
-            
             rune_names[rune_type].append(file_no_extension)
 
     load_race = 0
@@ -86,14 +120,13 @@ def read_templates() -> None:
             # print(f'Loaded {race_name} template')
             load_race += 1
 
-        
     print(f'Loaded {load_count} runes and {load_race} races templates')
-            
+
 
 def get_grid_loc_processed(x: int, y: int) -> tuple[int, int]:
     """ Get the grid location of the rune in the processed image. """
     return x * RUNE_SIZE // SCALE, y * RUNE_SIZE // SCALE
-            
+
 
 def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Rune, float]:
     """
@@ -109,7 +142,7 @@ def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Ru
     - attr: the attributes of the rune
     - sim: the similarity of the match
     """
-    
+
     # convert to BGRA if not
     if image.shape[2] != 4:
         image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
@@ -123,13 +156,14 @@ def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Ru
     s_x, s_y = (x * RUNE_SIZE + OFFSET[0]) // SCALE - margin, (y * RUNE_SIZE + OFFSET[1]) // SCALE - margin
     e_x, e_y = (x * RUNE_SIZE + OFFSET2[0]) // SCALE + margin, (y * RUNE_SIZE + OFFSET2[1]) // SCALE + margin
 
-    clamp = lambda x, l, r: max(l, min(r, x))
+    def clamp(x, left, right):
+        return max(left, min(right, x))
 
     s_x, e_x = clamp(s_x, 0, width), clamp(e_x, 0, width)
     s_y, e_y = clamp(s_y, 0, height), clamp(e_y, 0, height)
-    
+
     race_s_x, race_s_y = (x * RUNE_SIZE + RACE_OFFSET[0]) // SCALE - margin, (y * RUNE_SIZE + RACE_OFFSET[1]) // SCALE - margin
-    race_e_x, race_e_y = (x * RUNE_SIZE + RACE_OFFSET2[0]) // SCALE + margin, (y * RUNE_SIZE + RACE_OFFSET2[1]) // SCALE + margin 
+    race_e_x, race_e_y = (x * RUNE_SIZE + RACE_OFFSET2[0]) // SCALE + margin, (y * RUNE_SIZE + RACE_OFFSET2[1]) // SCALE + margin
 
     race_s_x, race_e_x = clamp(race_s_x, 0, width), clamp(race_e_x, 0, width)
     race_s_y, race_e_y = clamp(race_s_y, 0, width), clamp(race_e_y, 0, width)
@@ -144,15 +178,19 @@ def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Ru
     # thres1 = 100
     # thres2 = 600
     # edges_img = cv2.Canny(rune_image, thres1, thres2)
-    
+
     max_res = 0.0
     result = 'None'
     attr = (False, False, False)
-    name = 'None'
+    # name = 'None'
+    # print(f'{image.shape=}, {rune_image.shape=}')
     for rune, templates in rune_templates.items():
         # max_res = 0
+        # print(f'len of templates: {len(templates)}')
         for i, template in enumerate(templates):
             # print(template.shape)
+            # cv2.imshow("rune_image", rune_image)
+            # cv2.waitKey(0)
             res = cv2.matchTemplate(rune_image, template, cv2.TM_CCOEFF_NORMED)
             # edge_template = cv2.Canny(template, thres1, thres2)
             # res = cv2.matchTemplate(edges_img, edge_template, cv2.TM_CCOEFF_NORMED)
@@ -161,8 +199,7 @@ def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Ru
                 max_res = m_res
                 result = rune
                 attr = rune_attributes[rune][i]
-                name = rune_names[rune][i]
-
+                # name = rune_names[rune][i]
 
     if max_res < threshold:
         result = 'unknown'
@@ -193,14 +230,16 @@ def match_rune(image: MatLike, grid: tuple[int, int], threshold=0.8) -> tuple[Ru
 
     return result_rune, max_res
 
+
 @timeit
-def read_board(device: AdbDevice|None = None, filepath: str|None = None, screenshot: MatLike|None = None, read_effect: bool=False) -> TosGame:
+def read_board(device: AdbDevice | None = None, filepath: str | None = None,
+               screenshot: MatLike | None = None, read_effect: bool = False) -> TosGame:
     """
     read game from 1. adb_device, 2. filepath, 3. image with 3-channel
 
     """
     DEBUG = False
-    
+
     if DEBUG:
         start_time = time.time()
 
@@ -209,7 +248,8 @@ def read_board(device: AdbDevice|None = None, filepath: str|None = None, screens
 
     if screenshot is None:
         if filepath is None:
-            if device is None: device = get_adb_device()
+            if device is None:
+                device = get_adb_device()
             pic = device.screencap()
             screenshot = cv2.imdecode(np.frombuffer(pic, np.uint8), IMREAD_MODE)
             # screenshot = screencap(device)
@@ -223,7 +263,7 @@ def read_board(device: AdbDevice|None = None, filepath: str|None = None, screens
         screenshot_3channel = screenshot[:, :, :3]
     else:
         screenshot_3channel = screenshot
-        
+
     s_x, s_y = get_grid_loc(0, 0)
     e_x, e_y = get_grid_loc(COL_NUM, ROW_NUM)
     board_img = screenshot[s_y:e_y, s_x:e_x]
@@ -270,24 +310,39 @@ def read_board(device: AdbDevice|None = None, filepath: str|None = None, screens
 
     return game
 
+
 def test_screenshot(filename='E:/screenshot.png'):
     assert os.path.exists(filename), f'File {filename} does not exist'
     board = read_board(None, filename)
     board.print_board()
 
-def test_rune_at(x, y):
-    screenshot = cv2.imread('E:/screenshot.png', IMREAD_MODE)
-    rune = match_rune(screenshot, (x, y))
-    print(rune)
 
+def test_rune_at(screenshot: MatLike, x: int, y: int) -> tuple[Rune, float]:
+    if rune_templates['water'] == []:
+        read_templates()
 
+    # if screenshot.shape[2] != 3:
+    #     screenshot_3channel = screenshot[:, :, :3]
+    # else:
+    #     screenshot_3channel = screenshot
+
+    s_x, s_y = get_grid_loc(0, 0)
+    e_x, e_y = get_grid_loc(COL_NUM, ROW_NUM)
+    board_img = screenshot[s_y:e_y, s_x:e_x]
+    board_img = cv2.resize(board_img, (board_img.shape[1] // SCALE, board_img.shape[0] // SCALE))
+
+    if board_img.shape[2] != 4:
+        board_img = cv2.cvtColor(board_img, cv2.COLOR_BGR2BGRA)
+
+    rune, sim = match_rune(board_img, (x, y), threshold=0.8)
+    return rune, sim
 
 
 if __name__ == "__main__":
 
     # device = get_adb_device()
     # game = read_board(device, 'screenshots/Screenshot_20240323-012216.png')
-    game = read_board(None, 'screenshots/Screenshot_20240323-012337.png')
+    game = read_board(device=None, filepath='screenshots/Screenshot_20240323-012337.png')
     game.set_up_runes()
     game.print_board()
     # print("Races:")
@@ -296,8 +351,3 @@ if __name__ == "__main__":
     # game.print_min_match()
     # print("Untouchable:")
     # game.print_untouchable()
-    
-
-
-
-    

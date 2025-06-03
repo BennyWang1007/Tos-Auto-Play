@@ -1,10 +1,11 @@
 import os
 import random
+import subprocess
 from typing import Literal
 
 from ppadb.device import Device as AdbDevice
 
-from .constant import RUNE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, ROW_NUM, COL_NUM
+from .constant import RUNE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT
 from .utils import get_grid_loc, get_adb_device
 
 """-----------------send event constant and functions-----------------"""
@@ -23,7 +24,7 @@ BTN_TOUCH = 330
 
 DEV = '/dev/input/event1'
 
-ANDROID_DEVICE: Literal["LdPlayer", "BlueStack", "Nox", "Else"] = "Nox"
+ANDROID_DEVICE: Literal["LdPlayer", "BlueStack", "Nox", "Else"] = "Else"
 
 # ANDROID_DEVICE = "LdPlayer"
 
@@ -40,36 +41,41 @@ if ANDROID_DEVICE == "Nox":
     DEV = '/dev/input/event4'
 
 
-def sendevent(device: AdbDevice, type: int, code: int, value: int, dev: str=DEV):
+def sendevent(device: AdbDevice, type: int, code: int, value: int, dev: str = DEV):
     device.shell(f'sendevent {dev} {type} {code} {value}')
 
-def send_SYN_REPORT(device: AdbDevice, dev: str=DEV) -> None:
+
+def send_SYN_REPORT(device: AdbDevice, dev: str = DEV) -> None:
     sendevent(device, EV_SYN, SYN_REPORT, 0, dev)
 
-def send_BTN_TOUCH_DOWN(device: AdbDevice, dev: str=DEV) -> None:
+
+def send_BTN_TOUCH_DOWN(device: AdbDevice, dev: str = DEV) -> None:
     sendevent(device, EV_KEY, BTN_TOUCH, 1, dev)
 
-def send_BTN_TOUCH_UP(device: AdbDevice, dev: str=DEV) -> None:
+
+def send_BTN_TOUCH_UP(device: AdbDevice, dev: str = DEV) -> None:
     sendevent(device, EV_KEY, BTN_TOUCH, 0, dev)
 
-def send_POSITION(device: AdbDevice, x: int, y: int, dev: str=DEV, last: bool=False) -> None:
+
+def send_POSITION(device: AdbDevice, x: int, y: int, dev: str = DEV, last: bool = False) -> None:
     sendevent(device, EV_ABS, ABS_MT_POSITION_X, x, dev)
     sendevent(device, EV_ABS, ABS_MT_POSITION_Y, y, dev)
     send_SYN_REPORT(device, dev)
 
-def send_ABS_MT_TRACKING_ID(device: AdbDevice, x: int, dev: str=DEV) -> None:
-    sendevent(device, EV_ABS, ABS_MT_TRACKING_ID, x, dev)
 
+def send_ABS_MT_TRACKING_ID(device: AdbDevice, x: int, dev: str = DEV) -> None:
+    sendevent(device, EV_ABS, ABS_MT_TRACKING_ID, x, dev)
 
 
 """-----------------send event functions-----------------"""
 
-def route_move(device: AdbDevice, route: list[tuple[int, int]]) -> None:
 
+def route_move(device: AdbDevice, route: list[tuple[int, int]]) -> None:
     tolerance = RUNE_SIZE // 5
+
     def rand_loc():
         return random.randint(-tolerance, tolerance)
-    
+
     route_loc = [get_grid_loc(x, y) for x, y in route]
     route_loc = [(x + RUNE_SIZE // 2 + rand_loc(), y + RUNE_SIZE // 2 + rand_loc()) for x, y in route_loc]
 
@@ -80,7 +86,6 @@ def route_move(device: AdbDevice, route: list[tuple[int, int]]) -> None:
         route_loc = [(SCREEN_HEIGHT - y, x) for x, y in route_loc]
         route_loc = [(int(float(x) / SCREEN_HEIGHT * 32768), int(float(y) / SCREEN_WIDTH * 32768)) for x, y in route_loc]
 
-        
     send_ABS_MT_TRACKING_ID(device, 1)
     send_BTN_TOUCH_DOWN(device)
 
@@ -98,15 +103,13 @@ def route_move(device: AdbDevice, route: list[tuple[int, int]]) -> None:
     send_SYN_REPORT(device)
 
 
-import subprocess
-import time
-
 class AdbEventController:
-    def __init__(self, device: AdbDevice|None=None, dev: str=DEV):
+    def __init__(self, device: AdbDevice | None = None, dev: str = DEV):
         if device is None:
             self.device = get_adb_device()
-        self.dev = dev
+        self.device = device
         self.adb_shell = subprocess.Popen(['adb', 'shell'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.dev = dev
 
         self.time_between_events = 0.01
         self.time_between_moves = 0.05
@@ -116,14 +119,14 @@ class AdbEventController:
 
         print('AdbEventController initialized')
 
-
     def call(self, command):
         # print(f"called: {command}")
         # self.adb_shell.stdin.write(command + '\n')
         # self.adb_shell.stdin.write(command)
         # self.adb_shell.stdin.flush()
 
-        os.system(f'"adb shell "{command}"')
+        # os.system(f'"adb shell "{command}"')
+        os.system(f'adb -s {self.device.serial} shell "{command}"')
 
     def add_command(self, command):
         # self.long_command += command + "\n"
@@ -154,7 +157,7 @@ class AdbEventController:
     def send_BTN_TOUCH_UP(self):
         self.sendevent(EV_KEY, BTN_TOUCH, 0)
 
-    def send_POSITION(self, x: int, y: int, last: bool=False):
+    def send_POSITION(self, x: int, y: int, last: bool = False):
         self.sendevent(EV_ABS, ABS_MT_POSITION_X, x)
         self.sendevent(EV_ABS, ABS_MT_POSITION_Y, y)
         if last and (ANDROID_DEVICE == "BlueStack" or ANDROID_DEVICE == "Nox"):
@@ -166,7 +169,7 @@ class AdbEventController:
 
     def rand_loc(self):
         return random.randint(-RUNE_SIZE // 5, RUNE_SIZE // 5)
-    
+
     def get_shell_response(self):
         output = []
         while True:
@@ -215,7 +218,6 @@ class AdbEventController:
         # wait for the shell to finish
         self.adb_shell.stdout.readline()
 
-
     def route_move_no_root(self, route):
         route_loc = [get_grid_loc(x, y) for x, y in route]
         route_loc = [(x + RUNE_SIZE // 2 + self.rand_loc(), y + RUNE_SIZE // 2 + self.rand_loc()) for x, y in route_loc]
@@ -229,7 +231,6 @@ class AdbEventController:
         # print(f"{self.long_command=}")
         self.send_long_command()
 
-
     def close(self):
         if self.adb_shell:
             self.adb_shell.stdin.close()
@@ -242,4 +243,3 @@ class AdbEventController:
     def __del__(self):
         self.close()
         print('AdbEventController deleted')
-        

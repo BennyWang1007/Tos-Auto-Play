@@ -1,14 +1,22 @@
 import numpy as np
-# import utils
-from tosgame.MoveDir import MoveDir
-from util.constant import FIXED_BOARD, SettingType
-from util.utils import evaluate_with_indices, drop_indices, eliminate_once_with_indices, race_str2int, print_board
-from tosgame.Runes import Runes, Rune
 from copy import deepcopy
+
+from tosgame.MoveDir import MoveDir
+from tosgame.Runes import Rune, Runes
+from util.constant import FIXED_BOARD, SettingType
+from util.utils import (
+    drop_indices,
+    eliminate_once_with_indices,
+    evaluate_with_indices,
+    print_board,
+    race_str2int,
+)
+
 
 def is_rune(str):
     return str in ['water', 'fire', 'grass', 'light', 'dark', 'heart']
-    
+
+
 def is_race(str):
     pass
 
@@ -23,13 +31,13 @@ class TosGame:
         self.has_setting = True
         # self.has_default_setting = False
         self.default_board_setting: SettingType = {
-            'eli_color': [], # list of rune_str
-            'min_match_color': [], # list of tuple (rune_str, num)
-            'min_match_race': [], # list of tuple (race_str, num) such as ('神', 1)
-            'no_first': [], # list of rune_str, such as ['W', 'F']
-            'all_first': [], # list of rune_str
-            'eli_first': [10], # target number of first combo
-            'same': [] # list of rune_str
+            'eli_color': [],        # list of rune_str
+            'min_match_color': [],  # list of (rune_str, num)
+            'min_match_race': [],   # list of (race_str, num), e.g. ('神', 1)
+            'no_first': [],         # list of rune_str, e.g. ['W', 'F']
+            'all_first': [],        # list of rune_str
+            'eli_first': [10],      # target number of first combo
+            'same': [],             # list of rune_str
         }
         self.current_board_setting: SettingType = self.default_board_setting
         self.num_col = num_col
@@ -76,8 +84,10 @@ class TosGame:
                     self.board[i].all_first = True
 
     def __eq__(self, o: object) -> bool:
-        if not isinstance(o, TosGame): return False
-        if len(self.board) != len(o.board): return False
+        if not isinstance(o, TosGame):
+            return False
+        if len(self.board) != len(o.board):
+            return False
         for i in range(len(self.board)):
             if self.board[i] != o.board[i]:
                 return False
@@ -115,7 +125,8 @@ class TosGame:
                 self.board = [Rune(np.random.randint(1, 1+self.num_rune), False, False) for _ in range(self.num_row * self.num_col)] + [self.empty_rune]
                 self.indices = np.array([[x + y * self.num_col for x in range(self.num_col)] for y in range(self.num_row)])
                 self.evaluate()
-                if self.first_combo == 0: break
+                if self.first_combo == 0:
+                    break
         self.reset_combo()
 
     def __str__(self) -> str:
@@ -141,7 +152,6 @@ class TosGame:
                 s += ' '
         return s
 
-
     def random_board(self):
         self.reset()
 
@@ -162,7 +172,7 @@ class TosGame:
     def eliminate(self):
         self.reset_combo()
         self.first_combo, self.combo, self.totol_eliminated, self.indices_after_first_elimination = evaluate_with_indices(self.board, self.indices)
-        
+
     def evaluate(self) -> None:
         """
         evaluate the board after elimination
@@ -183,11 +193,11 @@ class TosGame:
         # set prev_action
         if self.action != -1:
             self.prev_action = self.action
-        
+
         # end move
         if action == MoveDir.NONE.value:
             return
-        
+
         self.move_count += 1
         x, y = self.cur_x, self.cur_y
         dx, dy = self.offset[action]
@@ -226,7 +236,7 @@ class TosGame:
         new_board.totol_eliminated = self.totol_eliminated
 
         return new_board
-    
+
     def print_race(self):
         race_name_str = ['__', '神', '魔', '人', '獸', '龍', '妖', '機']
         for i in range(self.num_row):
@@ -255,43 +265,42 @@ class TosGame:
         for i in range(self.num_col * self.num_row):
             rune_str += type_str[self.board[i].rune]
         return rune_str
-    
+
     def race_str(self) -> str:
         type_str = " GDHOLEM"
         rune_str = ""
         for i in range(self.num_col * self.num_row):
             rune_str += type_str[self.board[i].race]
         return rune_str
-    
+
     def min_match_str(self) -> str:
         min_match_str = ""
         for i in range(self.num_col * self.num_row):
             min_match_str += str(self.board[i].min_match)
         return min_match_str
-    
+
     # def no_first_str(self) -> str:
     #     no_first_str = ""
     #     for i in range(self.num_col * self.num_row):
     #         no_first_str += str(int(self.board[i].no_first))
     #     return no_first_str
-    
+
     def must_remove_str(self) -> str:
         must_remove_str = ""
         for i in range(self.num_col * self.num_row):
             must_remove_str += str(int(self.board[i].must_remove))
         return must_remove_str
-    
+
     # TODO: obsolete, remove in the future
     def to_c_str(self):
-        type_str = " WFGLDH?X_U"
         race_str = " GDEH?"
         rune_str = self.rune_str()
         race_str = self.race_str()
         min_match_str = self.min_match_str()
         must_remove_str = self.must_remove_str()
-        
+
         return rune_str + race_str + min_match_str + must_remove_str
-    
+
     def setting_str(self):
         str1 = 'eli_color: '
         for rune_str in self.current_board_setting['eli_color']:
@@ -310,11 +319,7 @@ class TosGame:
         # return str1 + sep + str2 + sep + str3 + sep + str4 + sep + str5
         return "/".join([str1, str2, str3, str4, str5])
 
-                
-
 
 if __name__ == "__main__":
     board = TosGame()
     board.print_board()
-
-    

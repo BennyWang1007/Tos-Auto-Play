@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class MoveDir(Enum):
     """A class of move direction"""
     LEFT = 0
@@ -11,7 +12,7 @@ class MoveDir(Enum):
     L_DOWN = 6
     R_DOWN = 7
     NONE = 8
-    
+
     @staticmethod
     def opposite(dir: int) -> int:
         match dir:

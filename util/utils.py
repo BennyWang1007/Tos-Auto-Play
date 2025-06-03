@@ -5,11 +5,13 @@ import time
 import cv2
 import numpy as np
 
-from tosgame.MoveDir import MoveDir
-from tosgame.Runes import Runes, Rune
 from ppadb.client import Client
 from ppadb.device import Device as AdbDevice
-from .constant import *
+
+from tosgame.MoveDir import MoveDir
+from tosgame.Runes import Runes, Rune
+
+from .constant import COL_NUM, ROW_NUM, RUNE_SIZE, LEFT_TOP, Complexity
 
 
 def get_grid_loc(x, y):
@@ -99,7 +101,8 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray, ha
                 # print(f'{min_match}', end=' ')
                 rune = board[board_indices[y, x]].rune
                 if min_match == 1 or min_match == 2:
-                    if min_match == 1: to_eliminate[y, x] = rune
+                    if min_match == 1:
+                        to_eliminate[y, x] = rune
                     if ((x > 0 and board[board_indices[y, x-1]].rune == rune)):
                         to_eliminate[y, x] = to_eliminate[y, x-1] = rune
                     if ((y > 0 and board[board_indices[y-1, x]].rune == rune)):
@@ -109,17 +112,17 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray, ha
                     if ((y < ROW_NUM-1 and board[board_indices[y+1, x]].rune == rune)):
                         to_eliminate[y, x] = to_eliminate[y+1, x] = rune
                 elif min_match == 3:
-                    if ((x > 0 and x < COL_NUM-1 and board[board_indices[y, x-1]].rune == rune and board[board_indices[y, x+1]].rune == rune)
+                    if (
+                        (x > 0 and x < COL_NUM-1 and board[board_indices[y, x-1]].rune == rune and board[board_indices[y, x+1]].rune == rune)
                         or (y > 0 and y < ROW_NUM-1 and board[board_indices[y-1, x]].rune == rune and board[board_indices[y+1, x]].rune == rune)
                     ):
                         to_eliminate[y, x] = to_eliminate[y, x-1] = to_eliminate[y, x+1] = rune
                 else:
                     raise ValueError('invalid min_match')
-    
+
     combo = 0
     total_eliminated = 0
 
-    
     isZero = False
     idx = (0, 0)
     target = 0
@@ -135,14 +138,17 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray, ha
                     target = board[board_indices[y, x]].rune
                     # print(f'{idx=}, {target=}')
                     break
-            if not isZero: break
-        if isZero: break
+            if not isZero:
+                break
+        if isZero:
+            break
         combo += 1
         stack = [idx]
         visited = []
         while stack:
             y, x = stack.pop()
-            if (y, x) in visited: continue
+            if (y, x) in visited:
+                continue
             visited.append((y, x))
             if y > 0 and to_eliminate[y-1, x] and board[board_indices[y-1, x]].rune == target:
                 stack.append((y-1, x))
@@ -161,23 +167,23 @@ def eliminate_once_with_indices(board: list[Rune], board_indices: np.ndarray, ha
     # print_board(board, board_indices)
 
     return combo, total_eliminated
-            
 
-def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = None, has_setting=False) -> tuple[int, int, int, np.ndarray]:
+
+def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray | None = None, has_setting=False) -> tuple[int, int, int, np.ndarray]:
     """
     Evaluate the board with the indices of the board.
     """
     if board_indices is None:
         board_indices = np.reshape(np.arange(COL_NUM * ROW_NUM), (ROW_NUM, COL_NUM))
-    
+
     combo, total_eliminated = eliminate_once_with_indices(board, board_indices, has_setting)
     return combo, combo, total_eliminated, board_indices
     indices_after_first_elimination = board_indices.copy()
     board_indices = drop_indices(board_indices)
-    
+
     if combo == 0:
         return 0, 0, 0, indices_after_first_elimination
-    
+
     f_c = combo
     c = 0
     eli = 0
@@ -190,19 +196,20 @@ def evaluate_with_indices(board: list[Rune], board_indices: np.ndarray|None = No
 
     return f_c, c, eli, indices_after_first_elimination
 
-def print_board(board: list[Rune], indices: np.ndarray|None = None) -> None:
+
+def print_board(board: list[Rune], indices: np.ndarray | None = None) -> None:
 
     if indices is None:
         indices = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
     if indices is not None:
         assert indices.shape == (ROW_NUM, COL_NUM), 'invalid indices shape'
-    
+
     # print('')
     for y in range(ROW_NUM):
         print('\033[0m|', end=' ')
         for x in range(COL_NUM):
             if board[indices[y, x]].rune == Runes.EMPTY.value:
-                print(f'\033[0m ', end=' ')
+                print('\033[0m ', end=' ')
                 continue
             color = Runes.int2color_code(board[indices[y, x]].rune)
             if board[indices[y, x]].rune == Runes.UNKNOWN.value or board[indices[y, x]].rune == Runes.HIDDEN.value:
@@ -214,50 +221,51 @@ def print_board(board: list[Rune], indices: np.ndarray|None = None) -> None:
     print('')
 
 
-def print_two_board(board: list[Rune], indices: np.ndarray|None = None, indices2: np.ndarray|None = None) -> None:
-    
-        if indices is None:
-            indices = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
-        if indices2 is None:
-            indices2 = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
-        if indices is not None:
-            assert indices.shape == (ROW_NUM, COL_NUM), 'invalid indices shape'
-        if indices2 is not None:
-            assert indices2.shape == (ROW_NUM, COL_NUM), 'invalid indices2 shape'
-        
-        # print('')
-        for y in range(ROW_NUM):
-            print('\033[0m|', end=' ')
-            for x in range(COL_NUM):
-                if board[indices[y, x]].rune == Runes.EMPTY.value:
-                    print(f'\033[0m ', end=' ')
-                    continue
-                color = Runes.int2color_code(board[indices[y, x]].rune)
-                if board[indices[y, x]].rune == Runes.UNKNOWN.value or board[indices[y, x]].rune == Runes.HIDDEN.value:
-                    print(f'\033[1m{color}?', end=' ')
-                else:
-                    symbol = '●' if board[indices[y, x]].untouchable == 0 else 'X'
-                    print(f'\033[1m{color}{symbol}', end=' ')
-            print('\033[0m|', end='')
-    
-            if y == ROW_NUM // 2:
-                print('  ->  ', end='')
+def print_two_board(
+    board: list[Rune], indices: np.ndarray | None = None, indices2: np.ndarray | None = None
+) -> None:
+    if indices is None:
+        indices = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
+    if indices2 is None:
+        indices2 = np.array([[x + y * COL_NUM for x in range(COL_NUM)] for y in range(ROW_NUM)])
+    if indices is not None:
+        assert indices.shape == (ROW_NUM, COL_NUM), 'invalid indices shape'
+    if indices2 is not None:
+        assert indices2.shape == (ROW_NUM, COL_NUM), 'invalid indices2 shape'
+
+    # print('')
+    for y in range(ROW_NUM):
+        print('\033[0m|', end=' ')
+        for x in range(COL_NUM):
+            if board[indices[y, x]].rune == Runes.EMPTY.value:
+                print('\033[0m ', end=' ')
+                continue
+            color = Runes.int2color_code(board[indices[y, x]].rune)
+            if board[indices[y, x]].rune == Runes.UNKNOWN.value or board[indices[y, x]].rune == Runes.HIDDEN.value:
+                print(f'\033[1m{color}?', end=' ')
             else:
-                print('      ', end='')
-    
-            print('\033[0m|', end=' ')
-            for x in range(COL_NUM):
-                if board[indices2[y, x]].rune == Runes.EMPTY.value:
-                    print(f'\033[0m ', end=' ')
-                    continue
-                color = Runes.int2color_code(board[indices2[y, x]].rune)
-                if board[indices2[y, x]].rune == Runes.UNKNOWN.value or board[indices2[y, x]].rune == Runes.HIDDEN.value:
-                    print(f'\033[1m{color}?', end=' ')
-                else:
-                    symbol = '●' if board[indices2[y, x]].untouchable == 0 else 'X'
-                    print(f'\033[1m{color}{symbol}', end=' ')
-            print('\033[0m|')
-        # print('')
+                symbol = '●' if board[indices[y, x]].untouchable == 0 else 'X'
+                print(f'\033[1m{color}{symbol}', end=' ')
+        print('\033[0m|', end='')
+
+        if y == ROW_NUM // 2:
+            print('  ->  ', end='')
+        else:
+            print('      ', end='')
+
+        print('\033[0m|', end=' ')
+        for x in range(COL_NUM):
+            if board[indices2[y, x]].rune == Runes.EMPTY.value:
+                print('\033[0m ', end=' ')
+                continue
+            color = Runes.int2color_code(board[indices2[y, x]].rune)
+            if board[indices2[y, x]].rune == Runes.UNKNOWN.value or board[indices2[y, x]].rune == Runes.HIDDEN.value:
+                print(f'\033[1m{color}?', end=' ')
+            else:
+                symbol = '●' if board[indices2[y, x]].untouchable == 0 else 'X'
+                print(f'\033[1m{color}{symbol}', end=' ')
+        print('\033[0m|')
+    # print('')
 
 
 def get_adb_device() -> AdbDevice:
@@ -271,7 +279,7 @@ def get_adb_device() -> AdbDevice:
         time.sleep(2)
         adb = Client(host='127.0.0.1', port=5037)
         devices = adb.devices()
-        
+
     if len(devices) == 0:
         print('Devices not found')
         # raise RuntimeError('No devices found')
@@ -285,34 +293,45 @@ def get_adb_device() -> AdbDevice:
             print(f"{i}: {device.serial}")
         index = int(input("Enter the index of the device: "))
         return devices[index]
-    
+
+
 def screencap(device: AdbDevice) -> np.ndarray:
     sub_proc = subprocess.Popen(['adb', 'exec-out', 'screencap', '-p'], stdout=subprocess.PIPE)
     assert sub_proc.stdout is not None
     screenshot = sub_proc.stdout.read()
     return cv2.imdecode(np.frombuffer(screenshot, np.uint8), cv2.IMREAD_COLOR)
 
+
 def get_args_from_complexity(complexity: Complexity) -> tuple[int, int, int]:
     """Get the iter, max_first_depth, max_depth from complexity"""
     if complexity == "Low":
-        return 20, 5, 6 # iter, max_first_depth, max_depth = 20, 5, 6
+        return 20, 5, 6  # iter, max_first_depth, max_depth = 20, 5, 6
     elif complexity == "Mid":
-        return 25, 6, 7 # iter, max_first_depth, max_depth = 25, 6, 7
+        return 25, 6, 7  # iter, max_first_depth, max_depth = 25, 6, 7
     elif complexity == "High":
-        return 30, 7, 9 # iter, max_first_depth, max_depth = 30, 7, 9
+        return 30, 7, 9  # iter, max_first_depth, max_depth = 30, 7, 9
     elif complexity == "Extreme":
-        return 35, 8, 10 # iter, max_first_depth, max_depth = 35, 8, 10
+        return 35, 8, 10  # iter, max_first_depth, max_depth = 35, 8, 10
     else:
         raise ValueError(f"Invalid complexity: {complexity}")
 
+
 def race_str2int(race_str: str) -> int:
-    if race_str == 'GOD' or race_str == '神': return 1
-    if race_str == 'DEVIL' or race_str == '魔': return 2
-    if race_str == 'HUMAN' or race_str == '人': return 3
-    if race_str == 'ORC' or race_str == '獸': return 4
-    if race_str == 'DRAGON' or race_str == '龍': return 5
-    if race_str == 'ELF' or race_str == '妖': return 6
-    if race_str == 'MECH' or race_str == '機': return 7
-    if race_str == '': return 0
-    # return 0
-    raise ValueError(f'Invalid Race str')
+    # if race_str == 'GOD' or race_str == '神': return 1
+    # if race_str == 'DEVIL' or race_str == '魔': return 2
+    # if race_str == 'HUMAN' or race_str == '人': return 3
+    # if race_str == 'ORC' or race_str == '獸': return 4
+    # if race_str == 'DRAGON' or race_str == '龍': return 5
+    # if race_str == 'ELF' or race_str == '妖': return 6
+    # if race_str == 'MECH' or race_str == '機': return 7
+    # if race_str == '': return 0
+    match race_str:
+        case 'GOD' | '神': return 1
+        case 'DEVIL' | '魔': return 2
+        case 'HUMAN' | '人': return 3
+        case 'ORC' | '獸': return 4
+        case 'DRAGON' | '龍': return 5
+        case 'ELF' | '妖': return 6
+        case 'MECH' | '機': return 7
+        case '': return 0
+        case _: raise ValueError(f'Invalid Race str: {race_str}')
